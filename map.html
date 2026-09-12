@@ -99,8 +99,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const COK = { lat: 10.152, lng: 76.392 };
-    // Common origin airports for COK traffic (approx coords) — used only as a
-    // fallback when a flight hasn't shown up on the live feed yet.
+    // Fallback origin coords, only used when a flight hasn't shown up on
+    // live ADS-B yet (e.g. still on the ground / just after pushback).
     const AIRPORTS = {
       'DXB': {lat:25.253, lng:55.365}, 'SHJ': {lat:25.328, lng:55.517},
       'DOH': {lat:25.273, lng:51.608}, 'MCT': {lat:23.593, lng:58.284},
@@ -121,6 +121,23 @@
     };
 
     const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
+
+    // IATA prefix → ICAO callsign prefix. ADS-B transponders broadcast the
+    // ICAO callsign (e.g. AXB2739), not the IATA schedule number (IX2739) —
+    // this is what actually gets matched against the live feed.
+    const ICAO_PREFIX = {
+      'IX':'AXB', 'AK':'AXM', 'FD':'AIQ', 'UL':'ALK', 'J9':'JZR',
+      'FZ':'FDB', 'WY':'OMA', 'G9':'ABY', '3L':'ADY', 'EY':'ETD'
+    };
+
+    function callsignFor(fn) {
+      const code = (fn || '').slice(0, 2).toUpperCase();
+      const icao = ICAO_PREFIX[code];
+      if (!icao) return null;
+      const num = fn.slice(2).replace(/^0+(?=\d)/, '');
+      return icao + num;
+    }
+
     const PROXIES = [
       u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
       u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -136,6 +153,8 @@
       document.getElementById('sTxt').textContent = txt;
     }
 
+    // Used for the FR24 schedule call, which FR24 blocks via CORS — needs
+    // the proxy-fallback chain. Updates the status pill.
     async function fetchJson(url) {
       const chain = [
         {url},
@@ -162,45 +181,57 @@
     }
 
     /* ============================================================
-       LIVE POSITION FEED
+       LIVE POSITION LOOKUP
        ------------------------------------------------------------
-       api.flightradar24.com/common/v1/airport.json (used for the
-       schedule) only carries STA/ETA/STD/ETD — no lat/lon/heading.
-       Real position + true track come from FR24's live tracking
-       feed instead, matched back to the schedule by flight number.
+       Community ADS-B mirrors (adsb.lol / adsb.fi / adsb.one) allow
+       direct browser fetches (CORS-enabled) and support exact
+       callsign lookups — no bounding-box scraping, no proxy needed,
+       so nothing can get mangled in transit. One small request per
+       tracked flight instead of one huge feed dump.
     ============================================================ */
-    // North,South,West,East — Europe/Gulf through South-East Asia,
-    // wide enough to cover COK's usual origins. Narrow this if you
-    // only care about Gulf/Sri Lanka traffic (fewer results = faster).
-    const FEED_URL = 'https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=55,-10,-10,110&faa=1&satellite=1&mlat=1&flarm=1&adsb=1&gnd=0&air=1&vehicles=0&estimated=1&maxage=14400&gliders=0&stats=0';
+    const ADSB_HOSTS = ['https://api.adsb.lol', 'https://api.adsb.fi', 'https://api.adsb.one'];
 
-    function normFn(s) { return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
-
-    // Feed row layout: [icao24, lat, lon, track, alt, speed, squawk, radar,
-    // type, reg, timestamp, originIata, destIata, flightNo, onGround, vspeed, callsign, ...]
-    async function fetchLivePositions() {
-      const live = new Map();
+    async function fetchDirectJson(url, timeoutMs = 8000) {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
-        const data = await fetchJson(FEED_URL);
-        for (const key in data) {
-          if (key === 'full_count' || key === 'version') continue;
-          const row = data[key];
-          if (!Array.isArray(row) || row.length < 14) continue;
-          const lat = row[1], lon = row[2], track = row[3];
-          if (typeof lat !== 'number' || typeof lon !== 'number') continue;
-          const flightNo = normFn(row[13]);
-          const callsign = normFn(row[16]);
-          if (flightNo) live.set(flightNo, { lat, lon, track });
-          if (callsign && !live.has(callsign)) live.set(callsign, { lat, lon, track });
-        }
-      } catch (e) {
-        // Live feed missed this cycle — callers fall back to the estimated line
+        const res = await fetch(url, {signal: ctrl.signal, cache: 'no-store'});
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } finally {
+        clearTimeout(tid);
       }
-      return live;
     }
 
-    // Great-circle initial bearing, used only for the fallback (non-live) markers
-    // so they at least point toward COK instead of sitting at a fixed angle.
+    function haversineKm(lat1, lon1, lat2, lon2) {
+      const toRad = d => d * Math.PI / 180;
+      const R = 6371;
+      const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    async function fetchLiveByCallsign(callsign) {
+      for (const host of ADSB_HOSTS) {
+        try {
+          const data = await fetchDirectJson(`${host}/v2/callsign/${encodeURIComponent(callsign)}`);
+          const ac = (data && Array.isArray(data.ac)) ? data.ac[0] : null;
+          if (!ac) return null; // valid "not airborne / not found" answer, no need to try other hosts
+          const lat = ac.lat, lon = ac.lon, track = ac.track;
+          if (typeof lat !== 'number' || typeof lon !== 'number') return null;
+          if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+          // Sanity check: reject anything absurdly far from India/Gulf region —
+          // guards against ever plotting a marker "off the map" again.
+          if (haversineKm(lat, lon, COK.lat, COK.lng) > 7000) return null;
+          return { lat, lon, track: typeof track === 'number' ? track : null };
+        } catch (e) { /* try next host */ }
+      }
+      return null;
+    }
+
+    // Great-circle initial bearing, used only when a flight has no live hit
+    // yet, so the fallback marker still points toward COK instead of
+    // sitting at a fixed angle.
     function bearingDeg(lat1, lon1, lat2, lon2) {
       const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
       const φ1 = toRad(lat1), φ2 = toRad(lat2), Δλ = toRad(lon2 - lon1);
@@ -210,8 +241,8 @@
     }
 
     // The bundled glyph's nose points to the upper-right (~NE) at rest, not
-    // true north. If headings still look consistently off by a fixed amount
-    // after this fix, nudge this in 90° steps (0 / 90 / 180 / -90) to match.
+    // true north. If headings still look consistently off by a fixed amount,
+    // nudge this in 90° steps (0 / 90 / 180 / -90) to match.
     const ICON_HEADING_OFFSET = -45;
 
     function initMap() {
@@ -222,14 +253,12 @@
         attributionControl: true
       });
 
-      // Dark basemap (CartoDB Dark Matter)
       L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_3inz_1_e5e2d0c2172ba5e930088c4a', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
       }).addTo(map);
 
-      // COK airport marker
       L.circleMarker([COK.lat, COK.lng], {
         radius: 8, color: '#e2394a', fillColor: '#ff8a1e', fillOpacity: 0.9, weight: 2
       }).addTo(map).bindPopup('<b>COK</b><br>Cochin International');
@@ -241,23 +270,39 @@
     async function fetchData() {
       setStatus('warn', 'Loading…');
       const url = 'https://api.flightradar24.com/common/v1/airport.json?code=cok&plugin-setting[schedule][mode]=arrivals&limit=80';
+      let scheduleData;
       try {
-        const [scheduleData, live] = await Promise.all([fetchJson(url), fetchLivePositions()]);
-        const flights = scheduleData?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
-        updateRadar(flights, live);
+        scheduleData = await fetchJson(url);
       } catch (e) {
-        // keep last markers
+        return; // keep last markers
       }
-    }
+      const flights = scheduleData?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
 
-    function planeIcon(color) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><path fill="${color}" d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>`;
-      return L.divIcon({
-        className: 'fr-marker',
-        html: `<div class="fr-plane">${svg}</div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+      // Only look up live positions for flights we're actually about to show
+      const now = Math.floor(Date.now() / 1000);
+      const candidates = [];
+      flights.forEach(f => {
+        const fl = f.flight;
+        const fn = fl?.identification?.number?.default || '';
+        if (!fn) return;
+        if (!ALLOWED.includes(fn.slice(0, 2))) return;
+        const est = fl.time?.estimated?.arrival || fl.time?.scheduled?.arrival || 0;
+        if (est < now - 1800 || est > now + 14400) return;
+        const cs = callsignFor(fn);
+        if (cs) candidates.push([fn, cs]);
       });
+
+      const live = new Map();
+      await Promise.all(candidates.map(async ([fn, cs]) => {
+        const pos = await fetchLiveByCallsign(cs);
+        if (pos) live.set(fn, pos);
+      }));
+
+      let liveCount = 0;
+      live.forEach(() => liveCount++);
+      setStatus('ok', `Live ${liveCount}/${candidates.length} · ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`);
+
+      updateRadar(flights, live);
     }
 
     function updateRadar(flights, live) {
@@ -273,28 +318,22 @@
         if (!ALLOWED.includes(code)) return;
 
         const est = fl.time?.estimated?.arrival || fl.time?.scheduled?.arrival || 0;
-        // Show flights arriving within next 4 hours or already close
         if (est < now - 1800 || est > now + 14400) return;
 
         seen.add(fn);
         const origin = fl.airport?.origin?.code?.iata || '???';
         const reg = fl.aircraft?.registration || '–';
-        const start = AIRPORTS[origin] || { lat: 15, lng: 70 }; // fallback over Arabian Sea / India
+        const start = AIRPORTS[origin] || { lat: 15, lng: 70 };
 
-        const liveHit = live && live.get(normFn(fn));
+        const liveHit = live && live.get(fn);
         let lat, lng, track, isLive;
 
         if (liveHit) {
-          // Real ADS-B/MLAT position and true track, straight from the feed
           lat = liveHit.lat;
           lng = liveHit.lon;
-          track = liveHit.track;
+          track = liveHit.track != null ? liveHit.track : bearingDeg(liveHit.lat, liveHit.lon, COK.lat, COK.lng);
           isLive = true;
         } else {
-          // Not on the live feed this cycle (out of coverage bounds, feed
-          // miss, etc.) — fall back to the old straight-line estimate, but
-          // still point the icon along the great-circle bearing toward COK
-          // instead of leaving it unrotated.
           const windowSec = 10800;
           const progress = Math.max(0, Math.min(1, (now - (est - windowSec)) / windowSec));
           lat = start.lat + (COK.lat - start.lat) * progress;
@@ -334,12 +373,11 @@
             }),
             zIndexOffset: 100
           }).addTo(map);
-          m.bindPopup(`<b>${fn}</b><br>${reg}<br>${origin} → COK<br>${isLive ? 'Live position' : 'Estimated position'}<br>ETA ~ ${new Date(est*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}`);
+          m.bindPopup(`<b>${fn}</b><br>${reg}<br>${origin} → COK<br>${isLive ? 'Live ADS-B position' : 'Estimated position'}<br>ETA ~ ${new Date(est*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}`);
           markers.set(fn, m);
         }
       });
 
-      // Remove stale
       markers.forEach((m, k) => {
         if (!seen.has(k)) {
           map.removeLayer(m);
@@ -352,7 +390,6 @@
       fetchData();
     });
 
-    // Init after DOM
     initMap();
   </script>
 </body>
