@@ -4,51 +4,20 @@
    Add-on for AIX SEC OPS index.html — It reads the arrivals
    table that index.html already builds and layers a "track
    this flight" checkbox + a live progress-bar panel on top.
-
-   WHAT IT DOES
-   ------------
-   1. Adds a "Track" checkbox column to the end of every row in
-      the Arrivals table (existing column indices are untouched,
-      so nothing else on the page breaks).
-   2. When a flight is checked, it appears in a floating panel
-      (bottom-right) showing: flight number, route, ETA (IST),
-      time remaining, and a live progress bar that fills up as
-      the flight approaches its ETA.
-   3. Progress bars update every 15s and automatically pick up
-      delay changes (if ETA slips, the bar recalculates).
-   4. Optional OS notifications ("Enable Alerts" button) fire at
-      60 / 30 / 15 / 10 / 5 / 0 minutes remaining for any tracked
-      flight — useful for ground staff who need a heads-up
-      without staring at the screen.
-   5. Selections persist across page refreshes (localStorage),
-      keyed by the flight's internal ID, so staff don't lose
-      their tracked list on reload.
 ============================================================ */
 (function () {
   'use strict';
 
-  /* ============================================================
-     CONFIG
-  ============================================================ */
   const STORAGE_KEY   = 'ff_followed_v1';
-  const SCAN_MS        = 2000;   // how often we scan for new rows to add checkboxes to
-  const TICK_MS        = 15000;  // how often the panel + progress bars refresh
-  const ALERT_MINUTES  = [60, 30, 15, 10, 5, 0]; // minutes-remaining alert thresholds
-  const APPROACH_WINDOW_SEC = 3 * 3600; // progress bar fills over the 3h leading up to ETA
+  const SCAN_MS        = 2000;
+  const TICK_MS        = 15000;
+  const ALERT_MINUTES  = [60, 30, 15, 10, 5, 0];
+  const APPROACH_WINDOW_SEC = 3 * 3600;
   let soundEnabled = localStorage.getItem('ff_sound_v1') === '1';
 
-  /* ============================================================
-     STATE
-  ============================================================ */
-  // Map<flightId, { fid, fn, from, sch, eta, startedAt, notified:number[] }>
   let followed = new Map();
   let alertsEnabled = false;
 
-  /* ============================================================
-     HELPERS: locate the arrivals table regardless of which
-     index.html variant is loaded (they use slightly different
-     ids / dataset key names).
-  ============================================================ */
   function getArrivalsBody() {
     return document.querySelector('#bArr') ||
            document.querySelector('#arrivals-table tbody');
@@ -61,7 +30,6 @@
     return tr.dataset.fid || tr.dataset.flightId || '';
   }
   function rowEta(tr) {
-    // prefer estimated time, fall back to scheduled
     return (parseInt(tr.dataset.est, 10) || parseInt(tr.dataset.sch, 10) || 0);
   }
   function rowSch(tr) {
@@ -77,9 +45,6 @@
     return tr.cells && tr.cells.length >= 6 && !tr.dataset.skeleton;
   }
 
-  /* ============================================================
-     TIME FORMATTING (reuse page's toIST() if it exists)
-  ============================================================ */
   function fmtIST(ts) {
     if (typeof window.toIST === 'function') {
       try { return window.toIST(ts); } catch (e) { /* fall through */ }
@@ -111,7 +76,6 @@
     if (typeof window.showToast === 'function') {
       try { window.showToast(msg); return; } catch (e) { /* fall through */ }
     }
-    // minimal fallback toast
     let t = document.getElementById('ffFallbackToast');
     if (!t) {
       t = document.createElement('div');
@@ -127,9 +91,6 @@
     t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2500);
   }
 
-  /* ============================================================
-     PERSISTENCE
-  ============================================================ */
   function loadStore() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -144,9 +105,6 @@
     } catch (e) { /* storage may be full/unavailable */ }
   }
 
-  /* ============================================================
-     FOLLOW / UNFOLLOW
-  ============================================================ */
   function followFlight(tr) {
     const fid = rowId(tr);
     if (!fid || followed.has(fid)) return;
@@ -172,7 +130,6 @@
     followed.delete(fid);
     saveStore();
     renderPanel();
-    // sync checkbox in table if row is still present
     const body = getArrivalsBody();
     if (body) {
       const tr = body.querySelector(`tr[data-fid="${CSS.escape(fid)}"], tr[data-flight-id="${CSS.escape(fid)}"]`);
@@ -182,12 +139,6 @@
     if (rec) toast(`Stopped tracking ${rec.fn}`);
   }
 
-  /* ============================================================
-     INJECT CHECKBOX COLUMN INTO ARRIVALS TABLE
-     (appended at the END of each row — never inserted at the
-     start — so existing column-index logic elsewhere on the
-     page is completely unaffected.)
-  ============================================================ */
   function ensureHeaderColumn() {
     const headRow = getArrivalsHeadRow();
     if (!headRow || headRow.querySelector('.ff-th')) return;
@@ -227,8 +178,6 @@
     if (!body) return;
     Array.from(body.rows).forEach(ensureCheckbox);
 
-    // Keep ETA data fresh for anything already followed, in case
-    // the row was updated in place (delay change etc.)
     Array.from(body.rows).forEach(tr => {
       const fid = rowId(tr);
       if (fid && followed.has(fid)) {
@@ -240,15 +189,9 @@
     });
   }
 
-  /* ============================================================
-     NOTIFICATIONS (optional, best-effort — milestone alerts,
-     since the web platform has no native progress-bar
-     notification. The in-page panel below IS the progress bar.)
-  ============================================================ */
   function maybePromptForAlerts() {
     if (alertsEnabled || !('Notification' in window)) return;
     if (Notification.permission === 'granted') { alertsEnabled = true; return; }
-    // Don't auto-prompt aggressively; only nudge once via the panel button.
   }
 
   function checkAlerts(rec, remainingSec) {
@@ -268,9 +211,6 @@
     }
   }
 
-  /* ============================================================
-     PANEL UI
-  ============================================================ */
   let panelCollapsed = false;
 
   function ensurePanelShell() {
@@ -396,9 +336,6 @@
 
     list.innerHTML = items.map(rec => {
       const eta = rec.eta || rec.sch || now;
-      // Anchor to a fixed window before ETA (not to whenever this device
-      // started tracking) so the bar reads the same for every staff member
-      // regardless of when they checked the box.
       const windowStart = eta - APPROACH_WINDOW_SEC;
       const elapsed = now - windowStart;
       let pct = Math.min(100, Math.max(0, (elapsed / APPROACH_WINDOW_SEC) * 100));
@@ -439,16 +376,9 @@
       });
     });
 
-    saveStore(); // persist any notified[] updates from checkAlerts()
+    saveStore();
   }
 
-  /* ============================================================
-     ROW OBSERVATION
-     MutationObserver reacts instantly when index.html adds/reorders
-     rows. The interval below stays only as a safety net in case a
-     future index.html variant swaps the tbody element outright
-     (which would silently disconnect the observer).
-  ============================================================ */
   let observedBody = null;
   function attachObserver() {
     const body = getArrivalsBody();
@@ -458,16 +388,13 @@
     observer.observe(body, { childList: true });
   }
 
-  /* ============================================================
-     INIT
-  ============================================================ */
   function init() {
     loadStore();
     ensurePanelShell();
     renderPanel();
     scanRows();
     attachObserver();
-    setInterval(() => { scanRows(); attachObserver(); }, SCAN_MS * 5); // safety net, low frequency
+    setInterval(() => { scanRows(); attachObserver(); }, SCAN_MS * 5);
     setInterval(renderPanel, TICK_MS);
   }
 
