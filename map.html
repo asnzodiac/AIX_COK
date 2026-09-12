@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0B0B0D"/>
+  <title>AIX SEC OPS – Live Map · COK</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root {
+      --bg: #0b0b0d;
+      --surface: #16151b;
+      --card: #131218;
+      --border: #27252e;
+      --text: #f3f1ec;
+      --muted: #8b8892;
+      --accent: #e2394a;
+      --accent2: #ff8a1e;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #map { height: 100%; width: 100%; background: var(--bg); }
+    body { font-family: var(--sans); color: var(--text); }
+
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top));
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand-mark {
+      width: 18px; height: 18px;
+      background: linear-gradient(135deg, var(--accent) 52%, var(--accent2) 52%);
+      clip-path: polygon(0 100%, 100% 100%, 100% 20%, 40% 0, 0 30%);
+      border-radius: 2px;
+    }
+    .brand-title { font-family: var(--mono); font-weight: 700; font-size: .82rem; }
+    .brand-sub { font-family: var(--mono); font-size: .6rem; color: var(--muted); }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); font-size: .72rem; font-weight: 600;
+      text-decoration: none; cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent2); }
+    .pill {
+      font-family: var(--mono); font-size: .65rem; color: var(--muted);
+      padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+    }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); margin-right: 4px; }
+    .dot.ok { background: #35c48a; box-shadow: 0 0 6px #35c48a; }
+    .dot.warn { background: #ffb238; }
+    .dot.bad { background: #ff5a5a; }
+
+    #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
+
+    .fr-marker {
+      display: flex; align-items: center; gap: 6px;
+      transform: translate(-50%, -50%);
+    }
+    .fr-plane {
+      width: 28px; height: 28px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+    }
+    .fr-tag {
+      background: #fdf001; border: 1px solid #c0b400; color: #000;
+      padding: 4px 7px; border-radius: 5px; font-family: monospace;
+      font-size: 10px; line-height: 1.25; box-shadow: 0 4px 10px rgba(0,0,0,0.45);
+      white-space: nowrap; font-weight: 700;
+    }
+    .fr-tag b { display: block; font-size: 11px; }
+    .fr-tag span { font-weight: 500; opacity: .85; }
+
+    .leaflet-control-attribution { font-size: 9px !important; background: rgba(11,11,13,.7) !important; color: #8b8892 !important; }
+    .leaflet-control-zoom a { background: var(--surface) !important; color: var(--text) !important; border-color: var(--border) !important; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <div>
+        <div class="brand-title">AIX SEC OPS · MAP</div>
+        <div class="brand-sub">COCHIN · COK</div>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="pill"><span class="dot" id="sDot"></span><span id="sTxt">Idle</span></span>
+      <a class="btn" href="./AIXindex.html">← Board</a>
+      <button class="btn" id="refreshBtn">↻</button>
+    </div>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const COK = { lat: 10.152, lng: 76.392 };
+    // Common origin airports for COK traffic (approx coords)
+    const AIRPORTS = {
+      'DXB': {lat:25.253, lng:55.365}, 'SHJ': {lat:25.328, lng:55.517},
+      'DOH': {lat:25.273, lng:51.608}, 'MCT': {lat:23.593, lng:58.284},
+      'AUH': {lat:24.433, lng:54.651}, 'BAH': {lat:26.271, lng:50.634},
+      'KWI': {lat:29.227, lng:47.969}, 'RUH': {lat:24.958, lng:46.699},
+      'JED': {lat:21.680, lng:39.157}, 'CMB': {lat:7.181, lng:79.884},
+      'MLE': {lat:4.192, lng:73.529}, 'SIN': {lat:1.350, lng:103.994},
+      'KUL': {lat:2.745, lng:101.710}, 'BKK': {lat:13.690, lng:100.750},
+      'DEL': {lat:28.556, lng:77.100}, 'BOM': {lat:19.089, lng:72.868},
+      'BLR': {lat:13.199, lng:77.710}, 'MAA': {lat:12.994, lng:80.171},
+      'HYD': {lat:17.231, lng:78.430}, 'CCU': {lat:22.655, lng:88.446},
+      'GOI': {lat:15.381, lng:73.831}, 'TRV': {lat:8.482, lng:76.920},
+      'CNN': {lat:11.918, lng:75.547}, 'CJB': {lat:11.030, lng:77.043},
+      'IXE': {lat:12.961, lng:74.890}, 'IXM': {lat:9.835, lng:78.093},
+      'SLL': {lat:17.039, lng:54.091}, 'SAW': {lat:40.899, lng:29.309},
+      'IST': {lat:41.275, lng:28.752}, 'AMS': {lat:52.309, lng:4.764},
+      'LHR': {lat:51.470, lng:-0.454}, 'FRA': {lat:50.037, lng:8.562},
+    };
+
+    const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
+    const PROXIES = [
+      u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    ];
+
+    let map, markers = new Map();
+    let consecutiveFailures = 0;
+
+    function setStatus(kind, txt) {
+      const d = document.getElementById('sDot');
+      d.className = 'dot' + (kind ? ' ' + kind : '');
+      document.getElementById('sTxt').textContent = txt;
+    }
+
+    async function fetchJson(url) {
+      const chain = [
+        {url},
+        ...PROXIES.map(p => ({url: p(url)}))
+      ];
+      for (const attempt of chain) {
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 12000);
+          const res = await fetch(attempt.url, {signal: ctrl.signal, cache: 'no-store'});
+          clearTimeout(tid);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const text = await res.text();
+          const i = text.indexOf('{'), j = text.lastIndexOf('}');
+          const json = JSON.parse(i >= 0 && j > i ? text.slice(i, j + 1) : text);
+          consecutiveFailures = 0;
+          setStatus('ok', 'Live · ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}));
+          return json;
+        } catch (e) { /* next */ }
+      }
+      consecutiveFailures++;
+      setStatus('bad', 'No data');
+      throw new Error('All fetch failed');
+    }
+
+    function initMap() {
+      map = L.map('map', {
+        center: [COK.lat, COK.lng],
+        zoom: 6,
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      // Dark basemap (CartoDB Dark Matter)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      // COK airport marker
+      L.circleMarker([COK.lat, COK.lng], {
+        radius: 8, color: '#e2394a', fillColor: '#ff8a1e', fillOpacity: 0.9, weight: 2
+      }).addTo(map).bindPopup('<b>COK</b><br>Cochin International');
+
+      fetchData();
+      setInterval(fetchData, 30000);
+    }
+
+    async function fetchData() {
+      setStatus('warn', 'Loading…');
+      const url = 'https://api.flightradar24.com/common/v1/airport.json?code=cok&plugin-setting[schedule][mode]=arrivals&limit=80';
+      try {
+        const data = await fetchJson(url);
+        const flights = data?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
+        updateRadar(flights);
+      } catch (e) {
+        // keep last markers
+      }
+    }
+
+    function planeIcon(color) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><path fill="${color}" d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>`;
+      return L.divIcon({
+        className: 'fr-marker',
+        html: `<div class="fr-plane">${svg}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+    }
+
+    function updateRadar(flights) {
+      const now = Math.floor(Date.now() / 1000);
+      const seen = new Set();
+
+      flights.forEach(f => {
+        const fl = f.flight;
+        if (!fl) return;
+        const fn = fl.identification?.number?.default || '';
+        if (!fn) return;
+        const code = fn.slice(0, 2);
+        if (!ALLOWED.includes(code)) return;
+
+        const est = fl.time?.estimated?.arrival || fl.time?.scheduled?.arrival || 0;
+        // Show flights arriving within next 4 hours or already close
+        if (est < now - 1800 || est > now + 14400) return;
+
+        seen.add(fn);
+        const origin = fl.airport?.origin?.code?.iata || '???';
+        const reg = fl.aircraft?.registration || '–';
+        const start = AIRPORTS[origin] || { lat: 15, lng: 70 }; // fallback over Arabian Sea / India
+
+        // Progress: assume ~3h flight window for approach visualization
+        const windowSec = 10800;
+        const progress = Math.max(0, Math.min(1, (now - (est - windowSec)) / windowSec));
+        const lat = start.lat + (COK.lat - start.lat) * progress;
+        const lng = start.lng + (COK.lng - start.lng) * progress;
+
+        const color = progress > 0.85 ? '#ff5a5a' : (progress > 0.6 ? '#ffb238' : '#ff8a1e');
+        const html = `
+          <div class="fr-marker">
+            <div class="fr-plane"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="${color}" d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg></div>
+            <div class="fr-tag"><b>${fn}</b><span>${reg}</span><br><span>${origin}→COK</span></div>
+          </div>`;
+
+        if (markers.has(fn)) {
+          const m = markers.get(fn);
+          m.setLatLng([lat, lng]);
+          m.setIcon(L.divIcon({
+            className: 'fr-marker',
+            html: html,
+            iconSize: [120, 40],
+            iconAnchor: [14, 14]
+          }));
+        } else {
+          const m = L.marker([lat, lng], {
+            icon: L.divIcon({
+              className: 'fr-marker',
+              html: html,
+              iconSize: [120, 40],
+              iconAnchor: [14, 14]
+            }),
+            zIndexOffset: 100
+          }).addTo(map);
+          m.bindPopup(`<b>${fn}</b><br>${reg}<br>${origin} → COK<br>ETA ~ ${new Date(est*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}`);
+          markers.set(fn, m);
+        }
+      });
+
+      // Remove stale
+      markers.forEach((m, k) => {
+        if (!seen.has(k)) {
+          map.removeLayer(m);
+          markers.delete(k);
+        }
+      });
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      fetchData();
+    });
+
+    // Init after DOM
+    initMap();
+  </script>
+</body>
+</html>
