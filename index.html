@@ -1,282 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>AIX SEC OPS – COK</title>
-<link rel="manifest" href="./manifest.json"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet"/>
-<script src="./config.js"></script>
-
-<style>
-/* ============================================================
-   DESIGN TOKENS (YOUR ORIGINAL STYLES)
-============================================================ */
-:root {
-  --bg: #0b0b0d; --surface: #16151b; --card: #131218; --border: #27252e;
-  --text: #f3f1ec; --muted: #8b8892; --accent: #e2394a; --accent2: #ff8a1e;
-  --teal: #2bb8b0; --green: #35c48a; --yellow: #ffb238; --red: #ff5a5a;
-  --grey: #3a3841; --mono: 'JetBrains Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
-  --radius: 8px; --shadow: 0 10px 30px rgba(0,0,0,.45);
-}
-[data-theme="light"] {
-  --bg: #eef0f1; --surface: #ffffff; --card: #ffffff; --border: #dcdfe3; --text: #16151a; --muted: #67656d;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px;}
-body{min-height:100dvh; padding-bottom:env(safe-area-inset-bottom);}
-
-/* TOP BAR & TABS */
-.topbar{position:sticky; top:0; z-index:200; background:var(--surface); border-bottom:1px solid var(--border); padding:12px 16px; display:flex; align-items:center; justify-content:space-between;}
-.brand-title{font-family:var(--mono); font-weight:700; font-size:.86rem;}
-.tabs{display:flex; gap:24px; padding:0 16px; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto;}
-.tab{padding:11px 2px; border:none; border-bottom:2px solid transparent; background:transparent; color:var(--muted); font-size:.78rem; font-weight:600; cursor:pointer; white-space:nowrap;}
-.tab.active{color:var(--text); border-bottom-color:var(--accent);}
-
-/* SECTIONS */
-.section{display:none; padding:16px;}
-.section.active{display:block}
-
-/* RADAR VIEW */
-#radar-container { width:100%; height:75vh; min-height:450px; border-radius:var(--radius); border:1px solid var(--border); background:#000; overflow:hidden; position:relative; }
-#map { width:100%; height:100%; }
-
-/* FR24 STYLE YELLOW TAGS */
-.fr-marker { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; z-index: 100; cursor: pointer; }
-.fr-plane-icon { width: 22px; height: 22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transform-origin: center; }
-.fr-tag {
-  background: #fdf001; /* FlightRadar24 Yellow */
-  border: 1px solid #c0b400;
-  color: #000;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 1.2;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-  white-space: nowrap;
-}
-.fr-tag b { display: block; font-size: 11px; font-weight: 700; margin-bottom: 1px; }
-.fr-tag img { height: 10px; width: auto; vertical-align: middle; margin-right: 4px; border-radius: 1px; }
-.fr-tag span { display: block; opacity: 0.8; }
-.fr-home { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; position: absolute; transform: translate(-50%,-50%); box-shadow: 0 0 10px var(--accent); }
-
-/* TABLES */
-.table-wrap{width:100%; overflow-x:auto; border-radius:var(--radius); border:1px solid var(--border); background:var(--card);}
-table{width:100%; border-collapse:collapse; font-size:.72rem;}
-th{background:var(--surface); color:var(--muted); padding:9px; text-align:center; font-family:var(--mono); border-bottom:1px solid var(--border);}
-td{padding:9px; text-align:center; border-bottom:1px solid var(--border);}
-.logo{height:14px; vertical-align:middle; margin-right:4px;}
-</style>
+    <style>
+        body, html, #map { height: 100%; margin: 0; padding: 0; background: #0b0b0d; }
+        .fr-marker { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .fr-plane { width: 22px; height: 22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+        .fr-tag {
+            background: #fdf001; border: 1px solid #c0b400; color: #000;
+            padding: 3px 6px; border-radius: 4px; font-family: monospace;
+            font-size: 10px; line-height: 1.2; box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            white-space: nowrap; font-weight: bold;
+        }
+        .fr-tag b { display: block; font-size: 11px; }
+        .fr-tag img { height: 10px; vertical-align: middle; margin-right: 4px; }
+    </style>
+    <script src="config.js"></script>
 </head>
 <body>
-
-<div class="topbar">
-  <div class="brand"><span class="brand-title">AIX SEC OPS <span style="color:var(--accent2)">COCHIN</span></span></div>
-  <div id="status" style="font-size:0.7rem; color:var(--green); font-family:var(--mono)">● SYSTEM LIVE</div>
-</div>
-
-<div class="tabs">
-  <button class="tab active" data-tab="flights">Arrivals & Departures</button>
-  <button class="tab" data-tab="turnaround">Turnaround</button>
-  <button class="tab" data-tab="radar">Radar View</button>
-</div>
-
-<!-- FLIGHTS SECTION -->
-<div class="section active" id="flights">
-  <div class="table-wrap">
-    <table id="tArr">
-      <thead><tr><th>Flight</th><th>Reg</th><th>From</th><th>ETA</th><th>Status</th></tr></thead>
-      <tbody id="bArr"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- TURNAROUND SECTION -->
-<div class="section" id="turnaround">
-  <div class="table-wrap">
-    <table id="tTurn">
-      <thead><tr><th>Pair</th><th>Reg</th><th>ETA / ETD</th><th>Status</th></tr></thead>
-      <tbody id="bTurn"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- RADAR SECTION -->
-<div class="section" id="radar">
-  <div id="radar-container">
     <div id="map"></div>
-  </div>
-</div>
+    <script>
+        const COK = { lat: 10.152, lng: 76.392 };
+        const AIRPORTS = { 'DXB':{lat:25.2,lng:55.3}, 'SHJ':{lat:25.3,lng:55.5}, 'DOH':{lat:25.2,lng:51.6}, 'MCT':{lat:23.5,lng:58.2} };
+        let map, markers = new Map();
 
-<script>
-/* ============================================================
-   RADAR ENGINE (MODULAR)
-============================================================ */
-const COK_COORDS = { lat: 10.1520, lng: 76.3920 };
-const AIRPORT_DB = {
-    'DXB':{lat:25.25,lng:55.36}, 'SHJ':{lat:25.32,lng:55.51}, 'AUH':{lat:24.43,lng:54.65},
-    'DOH':{lat:25.27,lng:51.60}, 'MCT':{lat:23.59,lng:58.28}, 'CMB':{lat:7.18,lng:79.88},
-    'SIN':{lat:1.35,lng:103.99}, 'KUL':{lat:2.74,lng:101.70}, 'DMM':{lat:26.47,lng:49.79}
-};
+        function CustomMarker(pos, html, map) { this.pos = pos; this.html = html; this.setMap(map); }
+        CustomMarker.prototype = Object.create(google.maps.OverlayView.prototype);
+        CustomMarker.prototype.onAdd = function() {
+            this.div = document.createElement('div'); this.div.className = 'fr-marker';
+            this.div.innerHTML = this.html; this.getPanes().overlayMouseTarget.appendChild(this.div);
+        };
+        CustomMarker.prototype.draw = function() {
+            const p = this.getProjection().fromLatLngToDivPixel(this.pos);
+            if(p && this.div) { this.div.style.left = p.x+'px'; this.div.style.top = p.y+'px'; }
+        };
+        CustomMarker.prototype.onRemove = function() { if(this.div) this.div.remove(); };
 
-let gMap, gInfoWindow, mapReady = false;
-let markers = new Map();
-
-// Custom HTML Overlay for Map
-function FRMarker(pos, html, map, bearing) {
-    this.pos = pos;
-    this.html = html;
-    this.bearing = bearing;
-    this.setMap(map);
-}
-FRMarker.prototype = Object.create(google.maps.OverlayView.prototype);
-FRMarker.prototype.onAdd = function() {
-    this.div = document.createElement('div');
-    this.div.className = 'fr-marker';
-    this.div.innerHTML = this.html;
-    this.getPanes().overlayMouseTarget.appendChild(this.div);
-};
-FRMarker.prototype.draw = function() {
-    const proj = this.getProjection();
-    const p = proj.fromLatLngToDivPixel(this.pos);
-    if (p && this.div) {
-        this.div.style.left = p.x + 'px';
-        this.div.style.top = p.y + 'px';
-    }
-};
-FRMarker.prototype.onRemove = function() { if(this.div) this.div.remove(); };
-FRMarker.prototype.update = function(pos, bearing) {
-    this.pos = pos;
-    if(this.div) {
-        const icon = this.div.querySelector('.fr-plane-icon');
-        if(icon) icon.style.transform = `rotate(${bearing}deg)`;
-    }
-    this.draw();
-};
-
-window.initRadarMap = function() {
-    gMap = new google.maps.Map(document.getElementById('map'), {
-        center: COK_COORDS, zoom: 6, disableDefaultUI: true,
-        styles: [
-            { "featureType": "water", "stylers": [{ "color": "#0e1724" }] },
-            { "featureType": "landscape", "stylers": [{ "color": "#1c2c43" }] },
-            { "featureType": "poi", "stylers": [{ "visibility": "off" }] }
-        ]
-    });
-    gInfoWindow = new google.maps.InfoWindow();
-    mapReady = true;
-    new FRMarker(new google.maps.LatLng(COK_COORDS.lat, COK_COORDS.lng), '<div class="fr-home"></div>', gMap, 0);
-};
-
-function calculateBearing(lat1, lon1, lat2, lon2) {
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
-    const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-              Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
-    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-
-function updateRadar(flights) {
-    if (!mapReady) return;
-    const now = Math.floor(Date.now() / 1000);
-    const seen = new Set();
-
-    flights.forEach(f => {
-        const fl = f.flight;
-        const fn = fl?.identification?.number?.default;
-        if (!fn) return;
-
-        const fid = fl.identification.id;
-        const origin = fl.airport.origin?.code?.iata;
-        const est = fl.time.estimated.arrival || fl.time.scheduled.arrival;
-        const reg = fl.aircraft?.registration || 'N/A';
-
-        // Filter: Arriving in the next 3.5 hours
-        if (est > now && est < now + 12600) {
-            seen.add(fid);
-            const startPos = AIRPORT_DB[origin] || { lat: 20, lng: 70 };
-            const window = 10800; // 3h simulation path
-            const progress = Math.max(0, Math.min(1, (now - (est - window)) / window));
-
-            const curLat = startPos.lat + (COK_COORDS.lat - startPos.lat) * progress;
-            const curLng = startPos.lng + (COK_COORDS.lng - startPos.lng) * progress;
-            const bearing = calculateBearing(startPos.lat, startPos.lng, COK_COORDS.lat, COK_COORDS.lng);
-            const latlng = new google.maps.LatLng(curLat, curLng);
-
-            const logo = `https://logo.clearbit.com/${fn.startsWith('IX')?'airindiaexpress.com':fn.startsWith('FZ')?'flydubai.com':'airasia.com'}`;
-            const html = `
-                <div class="fr-plane-icon" style="transform:rotate(${bearing}deg)">
-                    <svg viewBox="0 0 24 24" fill="#000"><path d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>
-                </div>
-                <div class="fr-tag">
-                    <b><img src="${logo}" onerror="this.style.display='none'">${fn}</b>
-                    <span>${reg}</span>
-                    <span>${origin} - COK</span>
-                </div>`;
-
-            if (markers.has(fid)) {
-                markers.get(fid).update(latlng, bearing);
-            } else {
-                markers.set(fid, new FRMarker(latlng, html, gMap, bearing));
-            }
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: COK, zoom: 6, disableDefaultUI: true,
+                styles: [{ "featureType": "all", "stylers": [{ "invert_lightness": true }, { "saturation": -100 }] }]
+            });
+            fetchData();
+            setInterval(fetchData, 30000);
         }
-    });
 
-    markers.forEach((m, id) => { if(!seen.has(id)) { m.setMap(null); markers.delete(id); }});
-}
-
-/* ============================================================
-   DATA FETCH LOGIC (YOUR ORIGINAL SYSTEM)
-============================================================ */
-async function loadAll() {
-    const url = `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.flightradar24.com/common/v1/airport.json?code=cok&plugin-setting[schedule][mode]=arrivals&limit=80')}`;
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const arrivals = data?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
-        
-        // Update Arrivals Table
-        const tbody = document.getElementById('bArr');
-        tbody.innerHTML = '';
-        arrivals.forEach(f => {
-            const fl = f.flight;
-            const fn = fl?.identification?.number?.default;
-            if(!fn) return;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td><b>${fn}</b></td><td>${fl.aircraft?.registration || '-'}</td><td>${fl.airport.origin?.code?.iata}</td><td>${new Date(fl.time.scheduled.arrival*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td><td>${fl.status.text}</td>`;
-            tbody.appendChild(tr);
-        });
-
-        // Sync Radar
-        updateRadar(arrivals);
-    } catch(e) { console.error("Data Load Error", e); }
-}
-
-/* ============================================================
-   TAB CONTROLS
-============================================================ */
-document.querySelectorAll('.tab').forEach(t => {
-    t.onclick = () => {
-        document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
-        t.classList.add('active');
-        document.getElementById(t.dataset.tab).classList.add('active');
-        
-        if (t.dataset.tab === 'radar') {
-            if (!window.google) {
-                const s = document.createElement('script');
-                s.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initRadarMap`;
-                document.head.appendChild(s);
-            } else {
-                setTimeout(() => { google.maps.event.trigger(gMap, 'resize'); gMap.setCenter(COK_COORDS); }, 200);
-            }
+        async function fetchData() {
+            const url = `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.flightradar24.com/common/v1/airport.json?code=cok&plugin-setting[schedule][mode]=arrivals&limit=50')}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const flights = data.result.response.airport.pluginData.schedule.arrivals.data;
+                updateRadar(flights);
+            } catch(e) {}
         }
-    };
-});
 
-window.onload = () => { loadAll(); setInterval(loadAll, 30000); };
-</script>
-<script src="flight-follow.js"></script>
+        function updateRadar(flights) {
+            const now = Math.floor(Date.now()/1000);
+            const seen = new Set();
+            flights.forEach(f => {
+                const fl = f.flight; const fn = fl.identification.number.default;
+                const est = fl.time.estimated.arrival || fl.time.scheduled.arrival;
+                if(est > now && est < now + 14400) {
+                    seen.add(fn);
+                    const origin = fl.airport.origin.code.iata;
+                    const start = AIRPORTS[origin] || {lat: 20, lng: 70};
+                    const progress = Math.max(0, Math.min(1, (now - (est - 10800)) / 10800));
+                    const pos = new google.maps.LatLng(start.lat + (COK.lat-start.lat)*progress, start.lng + (COK.lng-start.lng)*progress);
+                    const logo = `https://logo.clearbit.com/${fn.startsWith('IX')?'airindiaexpress.com':'airasia.com'}`;
+                    const html = `<div class="fr-plane"><svg viewBox="0 0 24 24" fill="#ff8a1e"><path d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg></div>
+                                  <div class="fr-tag"><b><img src="${logo}">${fn}</b><span>${fl.aircraft.registration}</span><br><span>${origin}-COK</span></div>`;
+                    if(markers.has(fn)) { markers.get(fn).pos = pos; markers.get(fn).div.innerHTML = html; markers.get(fn).draw(); }
+                    else markers.set(fn, new CustomMarker(pos, html, map));
+                }
+            });
+            markers.forEach((m, k) => { if(!seen.has(k)) { m.setMap(null); markers.delete(k); }});
+        }
+
+        const s = document.createElement('script');
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initMap`;
+        document.head.appendChild(s);
+    </script>
 </body>
 </html>
