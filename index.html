@@ -3,245 +3,1428 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>AIX SEC OPS – COK LIVE</title>
-<script src="config.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AIX COK"/>
+<meta name="theme-color" content="#0B0B0D"/>
+<title>AIX SEC OPS – COK</title>
+<link rel="manifest" href="./manifest.json"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
+<link rel="icon" href="./icon-192.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="./config.js"></script>
 
 <style>
+/* ============================================================
+   DESIGN TOKENS
+   Concept: an airfield ops board, not a SaaS dashboard — near-
+   black board face, warm paper-white readout text, and the two
+   livery colors (crimson / amber-orange) carrying status and
+   brand weight instead of a generic blue accent.
+============================================================ */
 :root {
-  --bg: #f3f4f6; --surface: #ffffff; --card: #ffffff; --border: #e5e7eb;
-  --text: #111827; --muted: #6b7280; --accent: #e2394a; --accent2: #ff8a1e;
-  --teal: #0f766e; --green: #10b981; --red: #ef4444;
-  --mono: 'JetBrains Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+  --bg:       #0b0b0d;
+  --surface:  #16151b;
+  --card:     #131218;
+  --border:   #27252e;
+  --text:     #f3f1ec;
+  --muted:    #8b8892;
+  --accent:   #e2394a;   /* crimson — brand + primary actions */
+  --accent2:  #ff8a1e;   /* amber-orange — brand secondary / soon-due */
+  --teal:     #2bb8b0;   /* tail teal — used sparingly for reg/secondary data */
+  --green:    #35c48a;
+  --yellow:   #ffb238;
+  --red:      #ff5a5a;
+  --grey:     #3a3841;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+  --radius:   8px;
+  --shadow:   0 10px 30px rgba(0,0,0,.45);
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+}
+[data-theme="light"] {
+  --bg:       #eef0f1;
+  --surface:  #ffffff;
+  --card:     #ffffff;
+  --border:   #dcdfe3;
+  --text:     #16151a;
+  --muted:    #67656d;
+  --accent:   #c8202f;
+  --accent2:  #e06a00;
+  --teal:     #0f8f88;
+  --green:    #0e9a63;
+  --yellow:   #b9720a;
+  --red:      #d6362a;
+  --grey:     #e4e6ea;
+  --shadow:   0 4px 18px rgba(20,20,25,.08);
 }
 
-body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
-.app-container { display: flex; flex-direction: column; height: 100vh; }
-.topbar { flex: 0 0 auto; background: #111827; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 100; border-bottom: 2px solid var(--accent); }
-.tabs { flex: 0 0 auto; display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; }
-.tab { padding: 12px 15px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; border-bottom: 3px solid transparent; font-size: 0.8rem; }
-.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-.main-content { flex: 1 1 auto; position: relative; }
-.section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; overflow-y: auto; }
-.section.active { display: block; }
-
-#map { width: 100%; height: 100%; background: #e5e7eb; }
-
-/* MAP LABELS CSS */
-.map-label {
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 2px 5px;
-    border-radius: 3px;
-    white-space: nowrap;
-    border: 1px solid rgba(255,255,255,0.2);
+html{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.45;
+  scroll-behavior:smooth;
 }
 
-/* INFOWINDOW STYLING */
-.iw-card { padding: 10px; min-width: 200px; color: #111; }
-.iw-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-.iw-logo { height: 25px; width: auto; object-fit: contain; }
-.iw-fn { font-weight: 700; font-family: var(--mono); font-size: 1.1rem; }
-.iw-route { font-size: 0.9rem; font-weight: 600; color: var(--accent); margin: 5px 0; }
-.iw-detail { font-size: 0.75rem; color: #555; font-family: var(--mono); }
+body{
+  min-height:100dvh;
+  padding-bottom:env(safe-area-inset-bottom);
+}
 
-#loader { position: fixed; inset: 0; background: #111827; color: white; z-index: 9999; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; }
+:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+}
+
+/* ===== TOP BAR ===== */
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:200;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:var(--sp-3) var(--sp-4);
+  padding-top:calc(var(--sp-3) + env(safe-area-inset-top));
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--sp-3);
+  flex-wrap:wrap;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-2);
+  min-width:0;
+}
+.brand-mark{
+  width:20px;height:20px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent) 52%,var(--accent2) 52%);
+  clip-path:polygon(0 100%, 100% 100%, 100% 20%, 40% 0, 0 30%);
+  border-radius:3px;
+}
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  line-height:1.1;
+  min-width:0;
+}
+.brand-title{
+  font-family:var(--mono);
+  font-weight:700;
+  font-size:.86rem;
+  letter-spacing:.02em;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.brand-sub{
+  font-family:var(--mono);
+  font-size:.62rem;
+  color:var(--muted);
+  letter-spacing:.04em;
+}
+
+.topbar-actions{
+  display:flex;
+  gap:var(--sp-2);
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+/* status pill: a live indicator, not a bordered box like the other chrome */
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px 5px 8px;
+  border-radius:999px;
+  font-size:.68rem;
+  font-family:var(--mono);
+  background:var(--card);
+  color:var(--muted);
+  border:1px solid var(--border);
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot.warn{background:var(--yellow)}
+.dot.bad{background:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* chip button (textual, e.g. proxy toggle) */
+.chip-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:6px 11px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--muted);
+  font-family:var(--mono);
+  font-size:.66rem;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:border-color .15s,color .15s;
+  -webkit-user-select:none;user-select:none;
+}
+.chip-btn:hover{border-color:var(--accent2);color:var(--text)}
+.chip-btn:active{transform:scale(.96)}
+
+/* icon-only ghost buttons: refresh / theme / notify */
+.icon-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:30px;height:30px;
+  border-radius:50%;
+  border:1px solid transparent;
+  background:transparent;
+  color:var(--text);
+  font-size:.85rem;
+  cursor:pointer;
+  transition:background .15s,border-color .15s,transform .1s;
+  -webkit-user-select:none;user-select:none;
+}
+.icon-btn:hover{background:var(--card);border-color:var(--border)}
+.icon-btn:active{transform:scale(.9)}
+.icon-btn.primary{background:var(--accent);color:#fff}
+.icon-btn.primary:hover{background:var(--accent);opacity:.9}
+
+.btn{ /* kept for Load Earlier + generic full-text buttons */
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:9px 16px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:.75rem;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:background .15s, border-color .15s, transform .1s;
+  -webkit-user-select:none;user-select:none;
+}
+.btn:hover{border-color:var(--accent2)}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+
+/* ===== ERROR BANNER (own row, not a topbar flex child) ===== */
+#errorBanner{
+  display:none;
+  padding:8px var(--sp-4);
+  background:#39121a;
+  color:#ffb3ae;
+  font-size:.72rem;
+  font-family:var(--mono);
+  border-bottom:1px solid var(--red);
+}
+[data-theme="light"] #errorBanner{background:#fdecec;color:#8a1f1f}
+
+/* ===== TABS — underline style, not filled pills ===== */
+.tabs{
+  display:flex;
+  gap:var(--sp-5);
+  padding:0 var(--sp-4);
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+
+.tab{
+  flex-shrink:0;
+  padding:11px 2px;
+  border:none;
+  border-bottom:2px solid transparent;
+  background:transparent;
+  color:var(--muted);
+  font-size:.78rem;
+  font-weight:600;
+  font-family:var(--sans);
+  cursor:pointer;
+  transition:color .15s,border-color .15s;
+  -webkit-user-select:none;user-select:none;
+}
+.tab:hover{color:var(--text)}
+.tab.active{
+  color:var(--text);
+  border-bottom-color:var(--accent);
+}
+
+/* ===== SECTION ===== */
+.section{display:none;padding:var(--sp-4) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom))}
+.section.active{display:block}
+
+/* ===== SECTION HEADER: left accent bar, no uppercase/tracked eyebrow ===== */
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:var(--sp-3);
+  margin:var(--sp-5) 0 var(--sp-3);
+}
+.sec-head:first-child{margin-top:var(--sp-2)}
+.sec-title{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:.98rem;
+  font-weight:600;
+  font-family:var(--sans);
+  color:var(--text);
+}
+.sec-title::before{
+  content:'';
+  width:4px;height:16px;
+  border-radius:2px;
+  background:linear-gradient(var(--accent),var(--accent2));
+  flex-shrink:0;
+}
+.sec-updated{
+  font-size:.66rem;
+  font-family:var(--mono);
+  color:var(--muted);
+  white-space:nowrap;
+}
+
+/* ===== TABLE WRAPPER ===== */
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  background:var(--card);
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.72rem;
+  table-layout:fixed;
+}
+
+thead th{
+  background:var(--surface);
+  color:var(--muted);
+  font-family:var(--mono);
+  font-size:.62rem;
+  font-weight:600;
+  padding:9px 6px;
+  text-align:center;
+  border-bottom:1px solid var(--border);
+  position:sticky;
+  top:0;
+  z-index:10;
+  white-space:nowrap;
+}
+
+tbody tr{
+  border-bottom:1px solid var(--border);
+  border-left:3px solid transparent;
+  transition:background .1s,border-color .15s;
+}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface)}
+
+td{
+  padding:9px 5px;
+  text-align:center;
+  vertical-align:middle;
+  word-break:break-word;
+  overflow:hidden;
+}
+
+/* Row status: a left accent bar, like an LED strip on a real board —
+   not a full-row color wash. */
+.onTime      td, .onTime{border-left-color:var(--green)}
+.delay       td, .delay{border-left-color:var(--yellow)}
+.heavyDelay  td, .heavyDelay{border-left-color:var(--red)}
+.cancelled   td, .cancelled{border-left-color:var(--grey); color:var(--muted); text-decoration:line-through}
+tbody tr.onTime,tbody tr.delay,tbody tr.heavyDelay,tbody tr.cancelled{border-left-width:3px;border-left-style:solid}
+
+/* First cell no left border */
+td:first-child,th:first-child{text-align:left;padding-left:12px}
+
+.logo{height:14px;width:auto;vertical-align:middle;margin-right:4px;max-width:28px;object-fit:contain}
+
+.fn{font-family:var(--mono);font-weight:600;font-size:.71rem;color:var(--teal)}
+.reg{font-family:var(--mono);font-size:.66rem;color:var(--muted)}
+
+/* status badge */
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:.62rem;
+  font-weight:600;
+  font-family:var(--mono);
+  white-space:nowrap;
+}
+.badge.green{background:rgba(53,196,138,.16);color:var(--green)}
+.badge.yellow{background:rgba(255,178,56,.16);color:var(--yellow)}
+.badge.red{background:rgba(255,90,90,.16);color:var(--red)}
+.badge.grey{background:rgba(139,136,146,.16);color:var(--muted)}
+
+.dly{
+  display:inline-block;
+  font-size:.6rem;
+  color:var(--yellow);
+  font-family:var(--mono);
+  margin-left:2px;
+}
+
+/* Empty state */
+.empty{
+  text-align:center;
+  padding:32px 20px;
+  color:var(--muted);
+  font-size:.8rem;
+}
+.empty span{font-size:1.6rem;display:block;margin-bottom:8px;opacity:.6}
+
+/* ===== TURNAROUND ===== */
+.turn-pair{text-align:left;padding-left:12px}
+.turn-arr{font-family:var(--mono);font-size:.68rem;color:var(--green)}
+.turn-dep{font-family:var(--mono);font-size:.68rem;color:var(--accent2);margin-top:2px}
+
+.route-tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:var(--sp-4) 0 0;
+}
+.route-tag{
+  font-family:var(--mono);
+  font-size:.64rem;
+  color:var(--muted);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:4px 9px;
+}
+.route-tag b{color:var(--text);font-weight:600}
+
+/* ===== TOAST ===== */
+.toast{
+  position:fixed;
+  bottom:calc(20px + env(safe-area-inset-bottom));
+  left:50%;
+  transform:translateX(-50%) translateY(100px);
+  background:var(--text);
+  color:var(--bg);
+  padding:10px 18px;
+  border-radius:999px;
+  font-size:.78rem;
+  font-weight:600;
+  box-shadow:var(--shadow);
+  z-index:999;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  white-space:nowrap;
+  max-width:90vw;
+  text-align:center;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ===== LOADING SKELETON ===== */
+.skeleton{
+  background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.4s infinite;
+  border-radius:4px;
+  display:inline-block;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ===== RADAR (map view) ===== */
+#mapWrap{
+  position:relative;
+  width:100%;
+  height:68vh;
+  min-height:420px;
+  border-radius:var(--radius);
+  overflow:hidden;
+  border:1px solid var(--border);
+  background:var(--card);
+}
+#map{width:100%;height:100%}
+#mapLoader{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--card);color:var(--muted);
+  font-family:var(--mono);font-size:.72rem;
+  gap:8px;
+  z-index:5;
+}
+#mapLoader.hidden{display:none}
+
+.fr-marker{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  display:flex;
+  align-items:center;
+  gap:5px;
+  cursor:pointer;
+  z-index:3;
+}
+.fr-plane-wrap{
+  width:20px;height:20px;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .6s ease;
+  flex-shrink:0;
+}
+.fr-plane{width:20px;height:20px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.55))}
+.fr-tag{
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-left:3px solid var(--grey);
+  border-radius:5px;
+  padding:3px 7px;
+  font-family:var(--mono);
+  box-shadow:0 3px 10px rgba(0,0,0,.4);
+  line-height:1.25;
+  white-space:nowrap;
+}
+.fr-tag.onTime{border-left-color:var(--green)}
+.fr-tag.delay{border-left-color:var(--yellow)}
+.fr-tag.heavyDelay{border-left-color:var(--red)}
+.fr-tag.cancelled{border-left-color:var(--grey)}
+.fr-tag-top{display:flex;align-items:center;gap:5px}
+.fr-tag-top img{height:11px;width:auto;max-width:20px;object-fit:contain}
+.fr-fn{font-weight:700;font-size:.65rem;color:var(--text)}
+.fr-reg{font-size:.58rem;color:var(--muted)}
+.fr-route{font-size:.6rem;color:var(--teal)}
+
+.fr-home{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--accent);
+  border:2px solid #fff;
+  box-shadow:0 0 0 3px rgba(226,57,74,.35);
+  transform:translate(-50%,-50%);
+  position:absolute;
+  z-index:2;
+}
+
+.iw-card{padding:2px;min-width:190px;font-family:var(--sans);color:#16151a}
+.iw-header{display:flex;align-items:center;gap:8px;margin-bottom:7px;border-bottom:1px solid #eee;padding-bottom:7px}
+.iw-logo{height:20px;width:auto;max-width:44px;object-fit:contain}
+.iw-fn{font-weight:700;font-family:var(--mono);font-size:.95rem}
+.iw-route{font-size:.8rem;font-weight:600;color:#c8202f;margin:4px 0}
+.iw-detail{font-size:.7rem;color:#555;font-family:var(--mono);line-height:1.6}
+
+/* ===== MOBILE ADJUSTMENTS ===== */
+@media(max-width:480px){
+  html{font-size:13px}
+  table{font-size:.67rem}
+  td,thead th{padding:7px 3px}
+  .logo{height:12px;max-width:22px}
+  .brand-sub{display:none}
+  #mapWrap{height:60vh;min-height:340px}
+}
 </style>
 </head>
 <body>
 
-<div id="loader">LOADING AIRSPACE...</div>
-
-<div class="app-container">
-    <div class="topbar">
-        <div class="brand">AIX SEC OPS <span style="color:var(--accent2)">LIVE</span></div>
-        <div id="status" style="font-size:0.7rem; font-family:var(--mono)">● SYSTEM ACTIVE</div>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="brand-text">
+      <span class="brand-title">AIX SEC OPS</span>
+      <span class="brand-sub">COCHIN · COK</span>
+    </span>
+  </div>
+  <div class="topbar-actions">
+    <div class="pill" aria-live="polite">
+      <span class="dot" id="sDot"></span>
+      <span id="sTxt">Idle</span>
     </div>
+    <button class="chip-btn" id="proxyBtn" title="Toggle proxy for iOS/Safari">Proxy: Auto</button>
+    <button class="icon-btn" id="refreshBtn" aria-label="Refresh now" title="Refresh now">↻</button>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">◐</button>
+    <button class="icon-btn primary" id="notifyBtn" aria-label="Enable notifications" title="Enable notifications">🔔</button>
+  </div>
+</div>
+<div id="errorBanner" role="alert" aria-live="assertive"></div>
 
-    <div class="tabs">
-        <button class="tab active" data-tab="map-section">RADAR VIEW</button>
-        <button class="tab" data-tab="flights-section">ARRIVALS LIST</button>
-    </div>
-
-    <div class="main-content">
-        <div id="map-section" class="section active">
-            <div id="map"></div>
-        </div>
-        <div id="flights-section" class="section">
-            <div style="padding:15px">
-                <table style="width:100%; border-collapse:collapse; background:white; font-size:0.8rem">
-                    <thead style="background:#f9fafb">
-                        <tr><th style="padding:10px; border-bottom:1px solid #ddd">FLIGHT</th><th style="padding:10px; border-bottom:1px solid #ddd">FROM</th><th style="padding:10px; border-bottom:1px solid #ddd">ETA</th></tr>
-                    </thead>
-                    <tbody id="bArr"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<!-- TABS -->
+<div class="tabs" role="tablist" aria-label="Sections">
+  <button class="tab active" role="tab" aria-selected="true" aria-controls="flights" data-tab="flights">Arrivals &amp; Departures</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="turnaround" data-tab="turnaround">Turnaround</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="radar" data-tab="radar">Radar</button>
 </div>
 
-<script>
-const COK_COORDS = { lat: 10.1520, lng: 76.3920 };
-let map;
-let markers = {};
-let infoWindow;
-const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
+<!-- FLIGHTS SECTION -->
+<div class="section active" id="flights" role="tabpanel">
 
-// Coords for common COK routes
+  <div class="sec-head">
+    <span class="sec-title">Arrivals</span>
+    <span class="sec-updated" id="lastUpdated"></span>
+  </div>
+  <div class="table-wrap">
+    <table id="tArr">
+      <thead>
+        <tr>
+          <th style="width:22%">Flight</th>
+          <th style="width:9%">Reg</th>
+          <th style="width:10%">From</th>
+          <th style="width:16%">ETA</th>
+          <th style="width:11%">STA</th>
+          <th style="width:14%">Type</th>
+          <th style="width:18%">Status</th>
+        </tr>
+      </thead>
+      <tbody id="bArr"><tr><td colspan="7" class="empty"><span>✈</span>Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="sec-head">
+    <span class="sec-title">Departures</span>
+  </div>
+  <div class="table-wrap">
+    <table id="tDep">
+      <thead>
+        <tr>
+          <th style="width:22%">Flight</th>
+          <th style="width:9%">Reg</th>
+          <th style="width:10%">To</th>
+          <th style="width:16%">ETD</th>
+          <th style="width:11%">STD</th>
+          <th style="width:14%">Type</th>
+          <th style="width:18%">Status</th>
+        </tr>
+      </thead>
+      <tbody id="bDep"><tr><td colspan="7" class="empty"><span>✈</span>Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div style="text-align:center;margin-top:var(--sp-5)">
+    <button class="btn" id="earlierBtn">Load earlier flights</button>
+  </div>
+</div>
+
+<!-- TURNAROUND SECTION -->
+<div class="section" id="turnaround" role="tabpanel">
+  <div class="sec-head">
+    <span class="sec-title">Turnaround matches</span>
+  </div>
+  <div class="table-wrap">
+    <table id="tTurn">
+      <thead>
+        <tr>
+          <th style="width:20%">Pair</th>
+          <th style="width:9%">Reg</th>
+          <th style="width:9%">From</th>
+          <th style="width:9%">To</th>
+          <th style="width:18%">ETA / ETD</th>
+          <th style="width:12%">STA / STD</th>
+          <th style="width:12%">Type</th>
+          <th style="width:11%">Status</th>
+        </tr>
+      </thead>
+      <tbody id="bTurn"><tr><td colspan="8" class="empty"><span>🔄</span>No turnarounds yet</td></tr></tbody>
+    </table>
+  </div>
+  <div class="route-tags">
+    <span class="route-tag"><b>IX</b> Air India Express</span>
+    <span class="route-tag"><b>AK/FD</b> AirAsia</span>
+    <span class="route-tag"><b>UL</b> SriLankan</span>
+    <span class="route-tag"><b>J9</b> Jazeera</span>
+    <span class="route-tag"><b>FZ</b> flydubai</span>
+    <span class="route-tag"><b>WY</b> Oman Air</span>
+  </div>
+</div>
+
+<!-- RADAR SECTION -->
+<div class="section" id="radar" role="tabpanel">
+  <div class="sec-head">
+    <span class="sec-title">Radar view</span>
+    <span class="sec-updated" id="radarUpdated"></span>
+  </div>
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="mapLoader"><span>◌</span><span id="mapLoaderTxt">Loading radar…</span></div>
+  </div>
+  <div class="route-tags">
+    <span class="route-tag" style="border-left:3px solid var(--green)"><b>●</b> On time</span>
+    <span class="route-tag" style="border-left:3px solid var(--yellow)"><b>●</b> Delayed</span>
+    <span class="route-tag" style="border-left:3px solid var(--red)"><b>●</b> Heavy delay</span>
+    <span class="route-tag" style="border-left:3px solid var(--accent)"><b>●</b> COK</span>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG
+============================================================ */
+const AIRPORT   = 'cok';
+const ALLOWED   = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
+const FR24_BASE = `https://api.flightradar24.com/common/v1/airport.json?code=${AIRPORT}`;
+const BRANDFETCH_ID = '1idBLQ1djCDndBUmUVs';
+const COK_COORDS = { lat: 10.1520, lng: 76.3920 };
+
+const PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+];
+
+/* Fallback coordinates for common COK routes, used only when the
+   FR24 payload for a given flight doesn't carry airport position data. */
 const AIRPORT_DB = {
-    'DXB': { lat: 25.25, lng: 55.36 }, 'SHJ': { lat: 25.32, lng: 55.51 },
-    'AUH': { lat: 24.43, lng: 54.65 }, 'DOH': { lat: 25.27, lng: 51.60 },
-    'SIN': { lat: 1.35, lng: 103.99 }, 'KUL': { lat: 2.74, lng: 101.70 },
-    'CMB': { lat: 7.18, lng: 79.88 }, 'MCT': { lat: 23.59, lng: 58.28 }
+  'DXB':{lat:25.2532,lng:55.3657}, 'SHJ':{lat:25.3286,lng:55.5172}, 'AUH':{lat:24.4330,lng:54.6511},
+  'DOH':{lat:25.2609,lng:51.6138}, 'DMM':{lat:26.4712,lng:49.7979}, 'RUH':{lat:24.9576,lng:46.6988},
+  'JED':{lat:21.6796,lng:39.1565}, 'KWI':{lat:29.2266,lng:47.9689}, 'MCT':{lat:23.5933,lng:58.2844},
+  'SLL':{lat:17.0387,lng:54.0913}, 'BAH':{lat:26.2708,lng:50.6336}, 'SIN':{lat:1.3502,lng:103.9944},
+  'KUL':{lat:2.7456,lng:101.7099}, 'CMB':{lat:7.1808,lng:79.8841},
 };
 
-function getLogo(fn) {
-    const code = fn.slice(0, 2);
-    const map = {
-        'IX': 'airindiaexpress.com', 'AK': 'airasia.com', 'FD': 'airasia.com',
-        'UL': 'srilankan.com', 'FZ': 'flydubai.com', 'WY': 'omanair.com',
-        'EY': 'etihad.com', 'G9': 'airarabia.com'
-    };
-    return map[code] ? `https://logo.clearbit.com/${map[code]}` : '';
+/* ============================================================
+   STATE
+============================================================ */
+let proxyMode   = localStorage.getItem('cok_proxy') || 'auto';
+let theme       = localStorage.getItem('cok_theme') || 'dark';
+let baseTs      = Math.floor(Date.now()/1000);
+let loading     = false;
+const lastFetch = new Map(); // key -> timestamp ms
+const notified  = new Set();
+let consecutiveFailures = 0; // used to back off polling when every proxy is failing
+
+/* ============================================================
+   UTILS
+============================================================ */
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+
+function escapeHtml(str){
+  return String(str==null?'':str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-        center: COK_COORDS,
-        zoom: 6,
-        mapTypeId: 'roadmap',
-        styles: [
-            { "featureType": "landscape", "stylers": [{ "color": "#f5f5f5" }] },
-            { "featureType": "water", "stylers": [{ "color": "#c9d2d9" }] }
-        ],
-        disableDefaultUI: true
+function toIST(ts){
+  if(!ts) return '–';
+  try{
+    return new Date(ts*1000).toLocaleTimeString('en-IN',{
+      timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false
     });
-
-    infoWindow = new google.maps.InfoWindow();
-
-    new google.maps.Marker({
-        position: COK_COORDS,
-        map: map,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#e2394a", fillOpacity: 1, strokeWeight: 2, strokeColor: "#fff" }
-    });
-
-    document.getElementById('loader').style.display = 'none';
-    updateData();
+  }catch{return '–'}
 }
 
-async function updateData() {
-    try {
-        const url = `https://api.allorigins.win/get?url=${encodeURIComponent('https://api.flightradar24.com/common/v1/airport.json?code=cok&plugin-setting[schedule][mode]=arrivals&limit=100')}`;
-        const res = await fetch(url);
-        const wrapper = await res.json();
-        const data = JSON.parse(wrapper.contents);
-        const flights = data?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
-        
-        processFlights(flights);
-    } catch (e) { console.error(e); }
+function delayMin(sch,est){
+  return (sch&&est) ? Math.round((est-sch)/60) : 0;
 }
 
-function processFlights(flights) {
-    const now = Math.floor(Date.now() / 1000);
-    const tbody = document.getElementById('bArr');
-    tbody.innerHTML = '';
-
-    flights.forEach(f => {
-        const fl = f.flight;
-        const fn = fl?.identification?.number?.default;
-        if (!fn || !ALLOWED.includes(fn.slice(0, 2))) return;
-
-        const origin = fl.airport.origin?.code?.iata || '???';
-        const sch = fl.time.scheduled.arrival;
-        const est = fl.time.estimated.arrival || sch;
-        const reg = fl.aircraft?.registration || 'N/A';
-        const status = fl.status.text;
-
-        // Add to list
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="padding:10px; border-bottom:1px solid #eee"><b>${fn}</b></td><td>${origin}</td><td>${new Date(est*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>`;
-        tbody.appendChild(tr);
-
-        // Map Marker logic (In-air: arriving in next 5 hours)
-        if (est > now && est < now + 18000) {
-            updateMarker({
-                id: fl.identification.id || fn,
-                fn, reg, origin, est, sch, status,
-                logo: getLogo(fn)
-            });
-        }
-    });
+function rowClass(statusTxt,delay){
+  const s=(statusTxt||'').toLowerCase();
+  if(s.includes('cancel')) return 'cancelled';
+  if(delay>30) return 'heavyDelay';
+  if(delay>5)  return 'delay';
+  return 'onTime';
 }
 
-function updateMarker(data) {
-    const origin = AIRPORT_DB[data.origin] || { lat: 20, lng: 65 };
-    const now = Math.floor(Date.now() / 1000);
-    const duration = 10800; // 3h path estimation
-    const progress = Math.max(0, Math.min(1, (now - (data.est - duration)) / duration));
+function badgeClass(cls){
+  if(cls==='onTime')    return 'green';
+  if(cls==='delay')     return 'yellow';
+  if(cls==='heavyDelay')return 'red';
+  return 'grey';
+}
 
-    const pos = {
-        lat: origin.lat + (COK_COORDS.lat - origin.lat) * progress,
-        lng: origin.lng + (COK_COORDS.lng - origin.lng) * progress
-    };
+function inWindow(type,sch,est,act){
+  const now=Math.floor(Date.now()/1000);
+  const t=sch||est||0;
+  const inRange = t >= now-3600 && t <= now+72000;
+  const lagging = sch && now>sch && (!act||act>now);
+  const recent  = type==='arrivals' ? (act && act>=now-10800) : (act && act>=now-600);
+  return inRange||lagging||recent;
+}
 
-    if (markers[data.id]) {
-        markers[data.id].setPosition(pos);
-    } else {
-        markers[data.id] = new google.maps.Marker({
-            position: pos,
-            map: map,
-            // VISIBLE LABELS ON TOP
-            label: {
-                text: `${data.fn}\n${data.reg}`,
-                color: "#111",
-                fontSize: "10px",
-                fontWeight: "bold"
-            },
-            icon: {
-                path: "M21,16L21,14L13,9L13,3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5L10,9L2,14L2,16L10,13.5L10,19L8,20.5L8,22L11.5,21L15,22L15,20.5L13,19L13,13.5L21,16Z",
-                fillColor: "#ff8a1e", fillOpacity: 1, scale: 1.2, strokeWeight: 1, strokeColor: "#000", anchor: new google.maps.Point(12, 12)
-            }
-        });
+function cleanOld(type,tbody){
+  const now=Math.floor(Date.now()/1000);
+  Array.from(tbody.rows).forEach(r=>{
+    const act=parseInt(r.dataset.act)||0;
+    const cutoff=type==='arrivals'? now-10800 : now-600;
+    if(act && act<cutoff) r.remove();
+  });
+}
 
-        // CLICK FOR DETAILS
-        markers[data.id].addListener("click", () => {
-            const content = `
-                <div class="iw-card">
-                    <div class="iw-header">
-                        <img src="${data.logo}" class="iw-logo" onerror="this.style.display='none'">
-                        <span class="iw-fn">${data.fn}</span>
-                    </div>
-                    <div class="iw-route">${data.origin} ➔ COK</div>
-                    <div class="iw-detail">
-                        REG: ${data.reg}<br>
-                        ETA: ${new Date(data.est*1000).toLocaleTimeString()}<br>
-                        STATUS: ${data.status}
-                    </div>
-                </div>
-            `;
-            infoWindow.setContent(content);
-            infoWindow.open(map, markers[data.id]);
-        });
+function sortByScheduled(tbody){
+  const rows=Array.from(tbody.rows);
+  rows.sort((a,b)=>(parseInt(a.dataset.sch)||0)-(parseInt(b.dataset.sch)||0));
+  rows.forEach(r=>tbody.appendChild(r));
+}
+
+/* ============================================================
+   LOGOS
+============================================================ */
+function getLogo(fn){
+  if(!fn) return '';
+  if(fn.startsWith('AK')||fn.startsWith('FD'))
+    return 'https://cdn.flightradar24.com/assets/airlines/logotypes/25.png';
+  const MAP={
+    'IX':'airindiaexpress.com', 'AI':'airindia.com', '6E':'goindigo.in',
+    'UK':'airvistara.com', 'SG':'spicejet.com', 'QP':'akasaair.com',
+    'EK':'emirates.com', 'EY':'etihad.com', 'QR':'qatarairways.com',
+    'SV':'saudia.com', 'KU':'kuwaitairways.com', 'WY':'omanair.com',
+    'GF':'gulfair.com', 'J9':'jazeeraairways.com', 'G9':'airarabia.com', '3L':'airarabia.com',
+    'UL':'srilankan.com', 'SQ':'singaporeair.com', 'TR':'scoot.co',
+    'MH':'malaysiaairlines.com', 'TG':'thaiairways.com',
+    'VN':'vietnamairlines.com', 'CX':'cathaypacific.com',
+    'LH':'lufthansa.com', 'AF':'airfrance.com', 'KL':'klm.com',
+    'BA':'britishairways.com', 'TK':'turkishairlines.com',
+    'ET':'ethiopianairlines.com', 'PK':'piac.com.pk', 'FZ':'flydubai.com',
+    'OD':'batikair.com', 'XY':'flynas.com', 'NP':'flyadeal.com',
+  };
+  const code=fn.slice(0,2);
+  const domain=MAP[code];
+  if(!domain) return '';
+  const fmt=fn.startsWith('FZ')?'svg':'png';
+  return `https://cdn.brandfetch.io/${domain}/logo.${fmt}?w=400&h=120&c=${BRANDFETCH_ID}`;
+}
+
+/* ============================================================
+   FETCH WITH PROXY FALLBACK
+============================================================ */
+async function fetchJson(url){
+  const useProxy = proxyMode==='on' || (proxyMode==='auto' && isIOS);
+  const chain = useProxy
+    ? [...PROXIES.map(p=>({name:p(url).slice(8,30),url:p(url)})),{name:'direct',url}]
+    : [{name:'direct',url},...PROXIES.map(p=>({name:'proxy',url:p(url)}))];
+
+  for(const attempt of chain){
+    try{
+      setStatus('warn','Loading…');
+      const ctrl=new AbortController();
+      const tid=setTimeout(()=>ctrl.abort(),12000);
+      const res=await fetch(attempt.url,{signal:ctrl.signal,cache:'no-store'});
+      clearTimeout(tid);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text=await res.text();
+      const i=text.indexOf('{'), j=text.lastIndexOf('}');
+      const json=JSON.parse(i>=0&&j>i ? text.slice(i,j+1) : text);
+      setStatus('ok',`Live · ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`);
+      clearError();
+      consecutiveFailures=0;
+      return json;
+    }catch(e){
+      // try next
     }
+  }
+  consecutiveFailures++;
+  setStatus('bad','No data');
+  showError(consecutiveFailures>2
+    ? `Could not load flights (${consecutiveFailures} attempts in a row). Backing off — check connection or toggle Proxy.`
+    : 'Could not load flights. Check connection or toggle Proxy.');
+  throw new Error('All fetch attempts failed');
 }
 
-document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
-        document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
-        t.classList.add('active');
-        document.getElementById(t.dataset.tab).classList.add('active');
+/* ============================================================
+   STATUS / ERROR
+============================================================ */
+function setStatus(kind,txt){
+  document.getElementById('sDot').className='dot'+(kind?' '+kind:'');
+  document.getElementById('sTxt').textContent=txt;
+}
+function showError(msg){
+  const b=document.getElementById('errorBanner');
+  b.textContent=msg; b.style.display='block';
+}
+function clearError(){
+  document.getElementById('errorBanner').style.display='none';
+}
+
+/* ============================================================
+   NOTIFICATIONS
+============================================================ */
+function canNotify(){return 'Notification' in window}
+function notify(fn,msg){
+  const key=fn+msg;
+  if(notified.has(key)) return;
+  notified.add(key);
+  if(canNotify()&&Notification.permission==='granted'){
+    try{new Notification(`✈ ${fn}`,{body:msg,icon:'icon-192.png'})}catch{}
+  }
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+/* ============================================================
+   LOAD FLIGHTS
+============================================================ */
+function shouldFetch(key,minMs=25000){
+  const now=Date.now();
+  if(now-(lastFetch.get(key)||0)>=minMs){ lastFetch.set(key,now); return true; }
+  return false;
+}
+
+async function loadFlights(type,ts,force=false){
+  const key=`${type}:${ts}`;
+  if(!force&&!shouldFetch(key)) return;
+
+  const url=`${FR24_BASE}&plugin-setting[schedule][mode]=${type}&plugin-setting[schedule][timestamp]=${ts}&limit=100`;
+  let json;
+  try{ json=await fetchJson(url); }catch{ return; }
+
+  const flights=json?.result?.response?.airport?.pluginData?.schedule?.[type]?.data||[];
+  const tbody=document.getElementById(type==='arrivals'?'bArr':'bDep');
+
+  // Remove skeleton if present
+  const sk=tbody.querySelector('[data-skeleton]');
+  if(sk) sk.remove();
+
+  let added=0;
+
+  flights.forEach(f=>{
+    const fl=f.flight;
+    const fn=fl?.identification?.number?.default||'';
+    if(!fn) return;
+    const code=fn.slice(0,2);
+    if(!ALLOWED.includes(code)) return;
+
+    const isDep=type==='departures';
+    const sch =isDep?fl.time.scheduled?.departure :fl.time.scheduled?.arrival;
+    const est =isDep?fl.time.estimated?.departure :fl.time.estimated?.arrival;
+    const act =isDep?fl.time.actual?.departure    :fl.time.actual?.arrival;
+    if(!inWindow(type,sch,est,act)) return;
+
+    const fid=fl.identification?.id||fn;
+    const existing=tbody.querySelector(`tr[data-fid="${CSS.escape(fid)}"]`);
+    const dly=delayMin(sch,est);
+    const statusTxt=fl.status?.text||'–';
+    const cls=rowClass(statusTxt,dly);
+
+    const otherAirport = isDep ? fl.airport?.destination : fl.airport?.origin;
+    const otherIata = otherAirport?.code?.iata || '–';
+    const otherPos = (otherAirport?.position && otherAirport.position.latitude!=null)
+      ? {lat:otherAirport.position.latitude, lng:otherAirport.position.longitude}
+      : (AIRPORT_DB[otherIata] || null);
+
+    // Keep radar data in sync for every seen flight, in place, regardless
+    // of table row novelty — the radar has its own visibility window.
+    radarData.set(fid, {
+      fid, type, fn, code, reg:fl.aircraft?.registration||'–',
+      model:fl.aircraft?.model?.code||fl.aircraft?.model?.text||'–',
+      sch:sch||0, est:est||sch||0, act:act||0, dly, cls, statusTxt,
+      otherIata, otherPos, logo:getLogo(fn)
     });
+
+    if(existing){
+      const oldDly=parseInt(existing.dataset.delay)||0;
+      existing.cells[3].innerHTML=etaCell(est,sch,dly);
+      existing.cells[6].innerHTML=`<span class="badge ${badgeClass(cls)}">${escapeHtml(statusTxt)}</span>`;
+      existing.className=cls;
+      existing.dataset.delay=dly;
+      // Notify delay change
+      if(dly>0&&dly>oldDly&&dly>5) notify(fn,`Delayed by ${dly} min`);
+      return;
+    }
+
+    const reg  =fl.aircraft?.registration||'–';
+    const dest =otherIata;
+    const model=fl.aircraft?.model?.code||fl.aircraft?.model?.text||'–';
+    const logo =getLogo(fn);
+
+    const tr=document.createElement('tr');
+    tr.dataset.fid=fid;
+    tr.dataset.sch=sch||0;
+    tr.dataset.est=est||0;
+    tr.dataset.act=act||0;
+    tr.dataset.delay=dly;
+    tr.className=cls;
+    tr.innerHTML=`
+      <td class="fn">${logo?`<img class="logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}${escapeHtml(fn)}</td>
+      <td class="reg">${escapeHtml(reg)}</td>
+      <td>${escapeHtml(dest)}</td>
+      <td>${etaCell(est,sch,dly)}</td>
+      <td>${toIST(sch)}</td>
+      <td style="font-size:.65rem">${escapeHtml(model)}</td>
+      <td><span class="badge ${badgeClass(cls)}">${escapeHtml(statusTxt)}</span></td>`;
+    tbody.appendChild(tr);
+    added++;
+  });
+
+  cleanOld(type,tbody);
+  sortByScheduled(tbody);
+
+  if(!tbody.rows.length){
+    tbody.innerHTML='<tr><td colspan="7" class="empty"><span>✈</span>No flights in range</td></tr>';
+  }
+
+  document.getElementById('lastUpdated').textContent=
+    `Updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false})} IST`;
+}
+
+function etaCell(est,sch,dly){
+  const t=est||sch;
+  const dlyHtml=dly>0?`<span class="dly">(+${dly})</span>`:'';
+  return `${toIST(t)}${dlyHtml}`;
+}
+
+/* ============================================================
+   TURNAROUND
+============================================================ */
+function buildTurnarounds(){
+  const arrRows=Array.from(document.getElementById('bArr').rows);
+  const depRows=Array.from(document.getElementById('bDep').rows);
+  const rArr=new Map(), rDep=new Map();
+
+  arrRows.forEach(r=>{
+    const reg=r.cells[1]?.textContent?.trim();
+    if(!reg||reg==='–') return;
+    const d={fn:r.cells[0].textContent.trim(),reg,
+      from:r.cells[2].textContent.trim(),
+      eta:parseInt(r.dataset.est)||0,sch:parseInt(r.dataset.sch)||0,
+      dly:parseInt(r.dataset.delay)||0,
+      model:r.cells[5]?.textContent?.trim(),
+      status:r.cells[6]?.textContent?.trim()};
+    if(!rArr.has(reg)) rArr.set(reg,[]);
+    rArr.get(reg).push(d);
+  });
+
+  depRows.forEach(r=>{
+    const reg=r.cells[1]?.textContent?.trim();
+    if(!reg||reg==='–') return;
+    const d={fn:r.cells[0].textContent.trim(),reg,
+      to:r.cells[2].textContent.trim(),
+      etd:parseInt(r.dataset.est)||0,sch:parseInt(r.dataset.sch)||0,
+      dly:parseInt(r.dataset.delay)||0,
+      model:r.cells[5]?.textContent?.trim(),
+      status:r.cells[6]?.textContent?.trim()};
+    if(!rDep.has(reg)) rDep.set(reg,[]);
+    rDep.get(reg).push(d);
+  });
+
+  const tbody=document.getElementById('bTurn');
+  tbody.innerHTML='';
+  let count=0;
+
+  for(const reg of rArr.keys()){
+    if(!rDep.has(reg)) continue;
+    const arrs=rArr.get(reg).sort((a,b)=>a.eta-b.eta);
+    const deps=rDep.get(reg).sort((a,b)=>a.etd-b.etd);
+    for(const arr of arrs){
+      for(const dep of deps){
+        const gap=dep.etd-arr.eta;
+        if(gap>0 && gap<=9000){ // up to 2.5 hrs
+          const maxDly=Math.max(arr.dly,dep.dly);
+          const cls=rowClass('',maxDly);
+          const logo=getLogo(arr.fn);
+          const tr=document.createElement('tr');
+          tr.className=cls;
+          tr.dataset.sch=arr.sch||0;
+          tr.innerHTML=`
+            <td class="turn-pair">
+              <div class="turn-arr">${logo?`<img class="logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}${escapeHtml(arr.fn)}</div>
+              <div class="turn-dep">↳ ${escapeHtml(dep.fn)}</div>
+            </td>
+            <td class="reg">${escapeHtml(reg)}</td>
+            <td>${escapeHtml(arr.from)}</td>
+            <td>${escapeHtml(dep.to)}</td>
+            <td style="font-family:var(--mono);font-size:.67rem">${toIST(arr.eta)} / ${toIST(dep.etd)}</td>
+            <td style="font-family:var(--mono);font-size:.67rem">${toIST(arr.sch)} / ${toIST(dep.sch)}</td>
+            <td style="font-size:.65rem">${escapeHtml(arr.model||'–')}</td>
+            <td><span class="badge ${badgeClass(cls)}">${maxDly>0?'+'+maxDly+'min':'On time'}</span></td>`;
+          tbody.appendChild(tr);
+          count++;
+        }
+      }
+    }
+  }
+
+  sortByScheduled(tbody);
+  if(!count){
+    tbody.innerHTML='<tr><td colspan="8" class="empty"><span>🔄</span>No turnarounds detected yet</td></tr>';
+  }
+}
+
+/* ============================================================
+   RADAR — FlightRadar24-style live map
+   ------------------------------------------------------------
+   radarData holds one entry per flight seen by loadFlights(),
+   independent of the arrivals/departures table rows. On each
+   poll we recompute which of those flights are currently
+   airborne (interpolating position along a straight line
+   between the other airport and COK) and draw them as custom
+   overlays: a rotated plane icon plus a small tag carrying the
+   airline logo, flight number, reg and route — the same visual
+   language as the FlightRadar24 app.
+============================================================ */
+const radarData = new Map(); // fid -> flight record (see loadFlights)
+const radarMarkers = new Map(); // fid -> FRMarker instance
+let gmap=null, gInfoWindow=null, mapScriptLoading=false, mapReady=false;
+const APPROACH_WINDOW_SEC = 3*3600; // treat a flight as airborne for 3h either side of its time
+
+function toRad(d){return d*Math.PI/180}
+function toDeg(r){return r*180/Math.PI}
+
+function bearingDeg(lat1,lon1,lat2,lon2){
+  const y=Math.sin(toRad(lon2-lon1))*Math.cos(toRad(lat2));
+  const x=Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+  return (toDeg(Math.atan2(y,x))+360)%360;
+}
+
+function planeSvg(color){
+  return `<svg class="fr-plane" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path fill="${color}" stroke="rgba(0,0,0,.55)" stroke-width=".6"
+      d="M21,16v-1.8l-8-4.95V4.2C13,3.1,12.3,2.2,11.5,2.2S10,3.1,10,4.2v5.05l-8,4.95V16l8-2.5v4.85l-2.3,1.55V21.4l3.8-1.05l3.8,1.05v-1.5L13,18.35V13.5L21,16z"/>
+  </svg>`;
+}
+
+function markerHtml(rec, bearing){
+  const color = rec.cls==='onTime' ? 'var(--green)' : rec.cls==='delay' ? 'var(--yellow)' : rec.cls==='heavyDelay' ? 'var(--red)' : 'var(--grey)';
+  const logoImg = rec.logo ? `<img src="${escapeHtml(rec.logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
+  const route = rec.type==='arrivals' ? `${escapeHtml(rec.otherIata)} → COK` : `COK → ${escapeHtml(rec.otherIata)}`;
+  return `
+    <div class="fr-plane-wrap" style="transform:rotate(${bearing}deg)">${planeSvg(color)}</div>
+    <div class="fr-tag ${rec.cls}">
+      <div class="fr-tag-top">${logoImg}<span class="fr-fn">${escapeHtml(rec.fn)}</span></div>
+      <span class="fr-reg">${escapeHtml(rec.reg)}</span>
+      <span class="fr-route">${route}</span>
+    </div>`;
+}
+
+function infoWindowHtml(rec){
+  const logoImg = rec.logo ? `<img src="${escapeHtml(rec.logo)}" class="iw-logo" onerror="this.style.display='none'">` : '';
+  const route = rec.type==='arrivals' ? `${escapeHtml(rec.otherIata)} ➔ COK` : `COK ➔ ${escapeHtml(rec.otherIata)}`;
+  const timeLabel = rec.type==='arrivals' ? 'ETA' : 'ETD';
+  return `
+    <div class="iw-card">
+      <div class="iw-header">${logoImg}<span class="iw-fn">${escapeHtml(rec.fn)}</span></div>
+      <div class="iw-route">${route}</div>
+      <div class="iw-detail">
+        REG: ${escapeHtml(rec.reg)}<br>
+        TYPE: ${escapeHtml(rec.model)}<br>
+        ${timeLabel}: ${toIST(rec.est||rec.sch)}${rec.dly>0?` (+${rec.dly}m)`:''}<br>
+        STATUS: ${escapeHtml(rec.statusTxt)}
+      </div>
+    </div>`;
+}
+
+/* Custom OverlayView: an HTML div pinned to a lat/lng, repositioned
+   on every map redraw. Used instead of google.maps.Marker so the
+   plane icon + logo tag can be one flexible HTML element. */
+function FRMarker(map, position, html, onClick){
+  this.position = position;
+  this.html = html;
+  this.onClick = onClick;
+  this.div = null;
+  this.setMap(map);
+}
+FRMarker.prototype = Object.create(google.maps.OverlayView.prototype);
+FRMarker.prototype.onAdd = function(){
+  const div = document.createElement('div');
+  div.className = 'fr-marker';
+  div.innerHTML = this.html;
+  if(this.onClick) div.addEventListener('click', this.onClick);
+  this.div = div;
+  this.getPanes().overlayMouseTarget.appendChild(div);
+};
+FRMarker.prototype.draw = function(){
+  const proj = this.getProjection();
+  if(!proj || !this.div) return;
+  const pos = proj.fromLatLngToDivPixel(this.position);
+  if(pos){ this.div.style.left = pos.x+'px'; this.div.style.top = pos.y+'px'; }
+};
+FRMarker.prototype.onRemove = function(){
+  if(this.div && this.div.parentNode){ this.div.parentNode.removeChild(this.div); }
+  this.div = null;
+};
+FRMarker.prototype.updatePosition = function(latlng){
+  this.position = latlng;
+  this.draw();
+};
+FRMarker.prototype.updateHtml = function(html){
+  if(this.div){ this.div.innerHTML = html; }
+};
+
+function loadGoogleMaps(){
+  if(mapScriptLoading || mapReady) return;
+  const key = (typeof CONFIG!=='undefined' && CONFIG.GOOGLE_MAPS_API_KEY) ? CONFIG.GOOGLE_MAPS_API_KEY : '';
+  if(!key || key==='API_KEY'){
+    document.getElementById('mapLoaderTxt').textContent = 'Add your Google Maps API key to config.js';
+    return;
+  }
+  mapScriptLoading = true;
+  window.__initRadarMap = initRadarMap;
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=__initRadarMap`;
+  script.async = true;
+  script.onerror = ()=>{
+    document.getElementById('mapLoaderTxt').textContent = 'Could not load Google Maps — check API key / network';
+  };
+  document.head.appendChild(script);
+}
+
+function initRadarMap(){
+  gmap = new google.maps.Map(document.getElementById('map'), {
+    center: COK_COORDS,
+    zoom: 6,
+    mapTypeId: 'roadmap',
+    disableDefaultUI: true,
+    zoomControl: true,
+    styles: theme==='dark' ? [
+      {elementType:'geometry',stylers:[{color:'#16151b'}]},
+      {elementType:'labels.text.fill',stylers:[{color:'#8b8892'}]},
+      {elementType:'labels.text.stroke',stylers:[{color:'#0b0b0d'}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#0b0f14'}]},
+      {featureType:'road',elementType:'geometry',stylers:[{color:'#27252e'}]},
+      {featureType:'administrative',elementType:'geometry',stylers:[{color:'#27252e'}]},
+      {featureType:'poi',stylers:[{visibility:'off'}]},
+    ] : []
+  });
+  gInfoWindow = new google.maps.InfoWindow();
+
+  new FRMarker(gmap, new google.maps.LatLng(COK_COORDS.lat, COK_COORDS.lng),
+    '<div class="fr-home" title="COK — Cochin International"></div>');
+
+  mapReady = true;
+  document.getElementById('mapLoader').classList.add('hidden');
+  updateRadar();
+}
+
+function updateRadar(){
+  if(!mapReady) return;
+  const now = Math.floor(Date.now()/1000);
+  const seen = new Set();
+
+  radarData.forEach(rec=>{
+    if(!rec.otherPos) return; // no coordinates to plot against
+
+    const isArr = rec.type==='arrivals';
+    const anchor = rec.est || rec.sch; // ETA for arrivals, ETD for departures
+    if(!anchor) return;
+
+    let progress, from, to;
+    if(isArr){
+      // airborne from (anchor - window) up to anchor (touchdown)
+      progress = (now - (anchor - APPROACH_WINDOW_SEC)) / APPROACH_WINDOW_SEC;
+      from = rec.otherPos; to = COK_COORDS;
+    }else{
+      // airborne from actual/estimated departure up to (departure + window)
+      const dep = rec.act || rec.est || rec.sch;
+      progress = (now - dep) / APPROACH_WINDOW_SEC;
+      from = COK_COORDS; to = rec.otherPos;
+    }
+    if(progress==null || isNaN(progress) || progress<0 || progress>=1) return; // on ground / not airborne
+
+    seen.add(rec.fid);
+    const lat = from.lat + (to.lat-from.lat)*progress;
+    const lng = from.lng + (to.lng-from.lng)*progress;
+    const bearing = bearingDeg(from.lat, from.lng, to.lat, to.lng);
+    const latlng = new google.maps.LatLng(lat,lng);
+
+    const existing = radarMarkers.get(rec.fid);
+    if(existing){
+      existing.updatePosition(latlng);
+      existing.updateHtml(markerHtml(rec, bearing));
+    }else{
+      const m = new FRMarker(gmap, latlng, markerHtml(rec, bearing), ()=>{
+        gInfoWindow.setContent(infoWindowHtml(rec));
+        gInfoWindow.setPosition(latlng);
+        gInfoWindow.open(gmap);
+      });
+      radarMarkers.set(rec.fid, m);
+    }
+  });
+
+  // drop markers for flights that landed / departed out of range / expired
+  radarMarkers.forEach((m,fid)=>{
+    if(!seen.has(fid)){ m.setMap(null); radarMarkers.delete(fid); }
+  });
+
+  document.getElementById('radarUpdated').textContent =
+    `${radarMarkers.size} airborne · ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false})} IST`;
+}
+
+/* ============================================================
+   MAIN LOAD LOOP
+============================================================ */
+async function loadAll(force=false){
+  if(loading&&!force) return;
+  loading=true;
+  try{
+    baseTs=Math.floor(Date.now()/1000);
+    const windows=[-1,0,1,2,3,4].map(i=>baseTs+i*6*3600);
+    await Promise.allSettled(
+      windows.flatMap(ts=>[
+        loadFlights('arrivals',ts,force),
+        loadFlights('departures',ts,force)
+      ])
+    );
+    buildTurnarounds();
+    updateRadar();
+  }finally{
+    loading=false;
+  }
+}
+
+/* ============================================================
+   CONTROLS
+============================================================ */
+// Earlier button
+document.getElementById('earlierBtn').addEventListener('click',async()=>{
+  baseTs-=6*3600;
+  await Promise.allSettled([
+    loadFlights('arrivals',baseTs,true),
+    loadFlights('departures',baseTs,true)
+  ]);
+  buildTurnarounds();
+  updateRadar();
+  showToast('Earlier flights loaded');
 });
 
-const script = document.createElement('script');
-script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initMap`;
-document.head.appendChild(script);
+// Proxy toggle
+const proxyLabels=['auto','on','off'];
+function updateProxyBtn(){
+  document.getElementById('proxyBtn').textContent=
+    `Proxy: ${proxyMode.charAt(0).toUpperCase()+proxyMode.slice(1)}`;
+}
+document.getElementById('proxyBtn').addEventListener('click',()=>{
+  const i=proxyLabels.indexOf(proxyMode);
+  proxyMode=proxyLabels[(i+1)%3];
+  localStorage.setItem('cok_proxy',proxyMode);
+  updateProxyBtn();
+  showToast(`Proxy: ${proxyMode}`);
+  lastFetch.clear();
+  loadAll(true);
+});
+updateProxyBtn();
 
-setInterval(updateData, CONFIG.REFRESH_INTERVAL);
+// Theme toggle
+function applyTheme(){
+  document.documentElement.dataset.theme=theme==='light'?'light':'dark';
+  document.getElementById('themeBtn').textContent=theme==='dark'?'☀':'☾';
+}
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  theme=theme==='dark'?'light':'dark';
+  localStorage.setItem('cok_theme',theme);
+  applyTheme();
+});
+applyTheme();
+
+// Notify button
+document.getElementById('notifyBtn').addEventListener('click',async()=>{
+  if(!canNotify()){showToast('Notifications not supported on this browser');return;}
+  if(Notification.permission==='granted'){showToast('Notifications already enabled ✓');return;}
+  const perm=await Notification.requestPermission();
+  showToast(perm==='granted'?'Notifications enabled ✓':'Notifications blocked');
+});
+
+// Tabs
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='turnaround') buildTurnarounds();
+    if(btn.dataset.tab==='radar'){
+      if(!mapReady) loadGoogleMaps();
+      else{ google.maps.event.trigger(gmap,'resize'); updateRadar(); }
+    }
+  });
+});
+
+/* ============================================================
+   PWA / SERVICE WORKER
+============================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  const btn=document.createElement('button');
+  btn.className='btn primary';
+  btn.textContent='📲 Install App';
+  btn.style.cssText='position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:14px;z-index:500;box-shadow:0 4px 20px rgba(59,130,246,.5)';
+  btn.onclick=()=>{
+    btn.remove();
+    deferredPrompt.prompt();
+    deferredPrompt=null;
+  };
+  document.body.appendChild(btn);
+});
+
+/* ============================================================
+   INIT
+============================================================ */
+if(proxyMode==='auto'&&isIOS){
+  showError('iOS detected – Proxy Auto enabled for CORS bypass.');
+}
+
+// Initial skeleton rows
+['bArr','bDep'].forEach(id=>{
+  const tbody=document.getElementById(id);
+  tbody.innerHTML='';
+  for(let i=0;i<5;i++){
+    const tr=document.createElement('tr');
+    tr.dataset.skeleton='1';
+    tr.innerHTML=`<td colspan="7" style="padding:10px"><div class="skeleton" style="height:14px;width:${60+Math.random()*30}%"></div></td>`;
+    tbody.appendChild(tr);
+  }
+});
+
+document.getElementById('refreshBtn').addEventListener('click',()=>{
+  lastFetch.clear();
+  loadAll(true);
+  showToast('Refreshing…');
+});
+
+const BASE_POLL_MS = 30000;
+const MAX_POLL_MS  = 5 * 60000; // don't back off past 5 min between polls
+let pollTimer;
+function schedulePoll(){
+  clearTimeout(pollTimer);
+  const delay = consecutiveFailures>0
+    ? Math.min(MAX_POLL_MS, BASE_POLL_MS * Math.pow(2, Math.min(consecutiveFailures,5)))
+    : BASE_POLL_MS;
+  pollTimer = setTimeout(async ()=>{
+    await loadAll(false);
+    schedulePoll();
+  }, delay);
+}
+
+loadAll(true);
+schedulePoll();
+window.addEventListener('online',()=>{lastFetch.clear();loadAll(true);showToast('Back online – refreshing…');schedulePoll();});
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadAll(false); } });
 </script>
+<script src="flight-follow.js"></script>
 </body>
 </html>
