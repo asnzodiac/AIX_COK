@@ -8,283 +8,245 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet"/>
 
+<!-- Load Config First -->
+<script src="config.js"></script>
+
 <style>
-/* ... (Keeping your existing CSS variables and base styles) ... */
 :root {
   --bg: #0b0b0d; --surface: #16151b; --card: #131218; --border: #27252e;
   --text: #f3f1ec; --muted: #8b8892; --accent: #e2394a; --accent2: #ff8a1e;
-  --teal: #2bb8b0; --green: #35c48a; --yellow: #ffb238; --red: #ff5a5a;
+  --teal: #2bb8b0; --green: #35c48a; --red: #ff5a5a;
   --mono: 'JetBrains Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
 }
 
-body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text); overflow-x: hidden; }
+body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
 
-/* TOP BAR & TABS (Consistent with your design) */
-.topbar { position: sticky; top: 0; z-index: 1000; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
-.brand-title { font-family: var(--mono); font-weight: 700; font-size: 1rem; color: var(--text); }
-.tabs { display: flex; gap: 20px; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; }
-.tab { padding: 12px 4px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent; }
+/* LAYOUT */
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+.topbar { flex: 0 0 auto; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+.tabs { flex: 0 0 auto; display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; z-index: 100; }
+.tab { padding: 12px 15px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent; font-size: 0.85rem; }
 .tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
 
-/* MAP STYLES */
-#map-section { display: none; height: calc(100vh - 110px); width: 100%; position: relative; }
-#map-section.active { display: block; }
-#map { height: 100%; width: 100%; background: #16151b; }
-
-/* Map Overlay Info */
-.map-overlay { position: absolute; top: 10px; left: 10px; z-index: 5; background: rgba(19, 18, 24, 0.9); border: 1px solid var(--border); padding: 10px; border-radius: 8px; font-size: 0.7rem; font-family: var(--mono); pointer-events: none; }
-
-/* TABLES & SECTIONS */
-.section { display: none; padding: 16px; }
+/* CONTENT AREA */
+.main-content { flex: 1 1 auto; position: relative; overflow: hidden; }
+.section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; overflow-y: auto; }
 .section.active { display: block; }
-.table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-th { background: var(--surface); color: var(--muted); padding: 10px; text-align: center; border-bottom: 1px solid var(--border); }
-td { padding: 10px; text-align: center; border-bottom: 1px solid var(--border); }
 
-/* Airplane Icon Style */
-.plane-marker { transition: transform 0.5s linear; }
+/* MAP */
+#map-wrapper { width: 100%; height: 100%; position: relative; background: #000; }
+#map { width: 100%; height: 100%; }
+.map-overlay { position: absolute; top: 15px; left: 15px; z-index: 5; background: rgba(13, 18, 24, 0.85); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; font-family: var(--mono); color: var(--text); border-left: 3px solid var(--accent2); }
 
-@media(max-width: 480px) { .brand-sub { display: none; } }
+/* TABLES */
+.table-wrap { padding: 15px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.75rem; background: var(--card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+th { background: var(--surface); color: var(--muted); padding: 12px 8px; text-align: center; border-bottom: 1px solid var(--border); font-family: var(--mono); }
+td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--border); }
+.fn-cell { color: var(--teal); font-weight: 700; font-family: var(--mono); }
+.badge { padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+
+/* LOADING STATE */
+#loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; font-family: var(--mono); }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">
-    <span class="brand-title">AIX SEC OPS <span style="color:var(--accent2)">COK LIVE</span></span>
-  </div>
-  <div class="topbar-actions">
-    <div id="sTxt" style="font-size:0.7rem; color:var(--green); font-family:var(--mono)">Live Tracking Active</div>
-  </div>
-</div>
+<div id="loader">INITIALIZING OPS SYSTEM...</div>
 
-<div class="tabs">
-  <button class="tab active" data-tab="map-section">Live Map</button>
-  <button class="tab" data-tab="flights">Arrivals & Departures</button>
-  <button class="tab" data-tab="turnaround">Turnaround</button>
-</div>
-
-<!-- LIVE MAP SECTION -->
-<div id="map-section" class="section active">
-    <div class="map-overlay" id="mapStats">Loading live traffic...</div>
-    <div id="map"></div>
-</div>
-
-<!-- FLIGHTS SECTION -->
-<div id="flights" class="section">
-    <div class="table-wrap">
-        <table id="tArr">
-            <thead>
-                <tr><th>Flight</th><th>Reg</th><th>From</th><th>ETA</th><th>Status</th></tr>
-            </thead>
-            <tbody id="bArr"></tbody>
-        </table>
+<div class="app-container">
+    <div class="topbar">
+        <div class="brand">
+            <span style="font-family:var(--mono); font-weight:700; font-size:1.1rem;">AIX SEC OPS <span style="color:var(--accent2)">COK</span></span>
+        </div>
+        <div id="status" style="font-size:0.7rem; color:var(--green); font-family:var(--mono)">● SYSTEM LIVE</div>
     </div>
-</div>
 
-<!-- TURNAROUND SECTION -->
-<div id="turnaround" class="section">
-    <div class="table-wrap">
-        <table id="tTurn">
-            <thead>
-                <tr><th>Pair</th><th>Reg</th><th>ETA / ETD</th><th>Status</th></tr>
-            </thead>
-            <tbody id="bTurn"></tbody>
-        </table>
+    <div class="tabs">
+        <button class="tab active" data-tab="map-section">LIVE MAP</button>
+        <button class="tab" data-tab="flights-section">ARRIVALS</button>
+        <button class="tab" data-tab="turnaround-section">TURNAROUND</button>
+    </div>
+
+    <div class="main-content">
+        <!-- MAP SECTION -->
+        <div id="map-section" class="section active">
+            <div id="map-wrapper">
+                <div class="map-overlay" id="mapStats">Scanning airspace...</div>
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <!-- ARRIVALS SECTION -->
+        <div id="flights-section" class="section">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>FLIGHT</th><th>REG</th><th>FROM</th><th>ETA</th><th>STATUS</th></tr>
+                    </thead>
+                    <tbody id="bArr"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TURNAROUND SECTION -->
+        <div id="turnaround-section" class="section">
+            <div class="table-wrap">
+                <table id="tTurn">
+                    <thead>
+                        <tr><th>PAIR</th><th>REG</th><th>ETA / ETD</th><th>STATUS</th></tr>
+                    </thead>
+                    <tbody id="bTurn"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-/* ============================================================
-   CONFIG & COORDINATES
-============================================================ */
 const COK_COORDS = { lat: 10.1520, lng: 76.3920 };
-// Known coordinates for interpolation (Simplified database)
+let map;
+let markers = {};
+const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
+
+// Simple coord database for interpolation
 const AIRPORT_DB = {
-    'DXB': { lat: 25.2532, lng: 55.3657 },
-    'SHJ': { lat: 25.3286, lng: 55.5172 },
-    'AUH': { lat: 24.4330, lng: 54.6511 },
-    'DOH': { lat: 25.2731, lng: 51.6081 },
-    'BKK': { lat: 13.6895, lng: 100.7501 },
-    'SIN': { lat: 1.3502, lng: 103.9945 },
-    'KUL': { lat: 2.7456, lng: 101.7072 },
-    'MCT': { lat: 23.5933, lng: 58.2844 },
-    'CMB': { lat: 7.1808, lng: 79.8841 },
-    'BLR': { lat: 13.1986, lng: 77.7066 },
-    'BOM': { lat: 19.0896, lng: 72.8656 },
-    'DEL': { lat: 28.5562, lng: 77.1000 },
+    'DXB': { lat: 25.2532, lng: 55.3657 }, 'SHJ': { lat: 25.3286, lng: 55.5172 },
+    'AUH': { lat: 24.4330, lng: 54.6511 }, 'DOH': { lat: 25.2731, lng: 51.6081 },
+    'BKK': { lat: 13.6895, lng: 100.7501 }, 'SIN': { lat: 1.3502, lng: 103.9945 },
+    'KUL': { lat: 2.7456, lng: 101.7072 }, 'MCT': { lat: 23.5933, lng: 58.2844 }
 };
 
-let map;
-let markers = {}; // Store markers by Flight ID
-const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
-const FR24_BASE = `https://api.flightradar24.com/common/v1/airport.json?code=cok`;
-
-/* ============================================================
-   MAP INITIALIZATION
-============================================================ */
 function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
+    console.log("Map Initializing...");
+    const mapEl = document.getElementById("map");
+    map = new google.maps.Map(mapEl, {
         center: COK_COORDS,
         zoom: 6,
         styles: [
-            { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-            { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+            { "elementType": "geometry", "stylers": [{ "color": "#1a1c23" }] },
             { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
-            { "featureType": "road", "stylers": [{ "visibility": "off" }] }
+            { "featureType": "road", "stylers": [{ "visibility": "off" }] },
+            { "elementType": "labels.text.fill", "stylers": [{ "color": "#616161" }] }
         ],
         disableDefaultUI: true
     });
 
-    // Add COK Airport Marker
     new google.maps.Marker({
         position: COK_COORDS,
         map: map,
-        icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 6,
-            fillColor: "#ff8a1e",
-            fillOpacity: 1,
-            strokeWeight: 2,
-            strokeColor: "#fff"
-        },
-        title: "Cochin International Airport"
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: "#ff8a1e", fillOpacity: 1, strokeWeight: 2, strokeColor: "#fff" }
     });
+
+    document.getElementById('loader').style.display = 'none';
+    updateData();
 }
 
-/* ============================================================
-   REAL-TIME POSITION CALCULATION
-============================================================ */
-function getCurrentPosition(originCode, schArr, estArr) {
-    const origin = AIRPORT_DB[originCode] || { lat: 10.1520 + 5, lng: 76.3920 + 5 }; // Fallback offset
-    const now = Math.floor(Date.now() / 1000);
-    const eta = estArr || schArr;
-    const duration = 10800; // Assume 3 hours flight if departure unknown
-    const startTime = eta - duration;
-
-    if (now >= eta) return COK_COORDS; // Arrived
-    if (now <= startTime) return origin; // Not yet departed
-
-    const progress = (now - startTime) / (eta - startTime);
-    
-    return {
-        lat: origin.lat + (COK_COORDS.lat - origin.lat) * progress,
-        lng: origin.lng + (COK_COORDS.lng - origin.lng) * progress,
-        bearing: calculateBearing(origin.lat, origin.lng, COK_COORDS.lat, COK_COORDS.lng)
-    };
-}
-
-function calculateBearing(lat1, lng1, lat2, lng2) {
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const y = Math.sin(dLng) * Math.cos(lat2 * Math.PI / 180);
-    const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-              Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLng);
-    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-
-/* ============================================================
-   CORE DATA FETCH & MAP UPDATE
-============================================================ */
-async function updateLiveTraffic() {
+async function updateData() {
     try {
-        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(FR24_BASE + '&plugin-setting[schedule][mode]=arrivals&limit=50')}`;
+        const url = `https://api.allorigins.win/get?url=${encodeURIComponent('https://api.flightradar24.com/common/v1/airport.json?code=cok&plugin-setting[schedule][mode]=arrivals&limit=50')}`;
         const res = await fetch(url);
-        const data = await res.json();
-        const arrivals = data?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
-
-        let activeCount = 0;
-        const now = Math.floor(Date.now() / 1000);
-
-        arrivals.forEach(f => {
-            const fl = f.flight;
-            const fn = fl?.identification?.number?.default;
-            if (!fn || !ALLOWED.includes(fn.slice(0, 2))) return;
-
-            const sch = fl.time.scheduled.arrival;
-            const est = fl.time.estimated.arrival || sch;
-            const origin = fl.airport.origin?.code?.iata;
-            const fid = fl.identification.id;
-
-            // Only show flights in the air (arriving in the next 4 hours)
-            if (est > now && est < now + 14400) {
-                activeCount++;
-                const pos = getCurrentPosition(origin, sch, est);
-
-                if (markers[fid]) {
-                    markers[fid].setPosition(new google.maps.LatLng(pos.lat, pos.lng));
-                    markers[fid].getIcon().rotation = pos.bearing;
-                } else {
-                    markers[fid] = new google.maps.Marker({
-                        position: pos,
-                        map: map,
-                        title: `${fn} from ${origin}`,
-                        icon: {
-                            path: "M21,16L21,14L13,9L13,3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5L10,9L2,14L2,16L10,13.5L10,19L8,20.5L8,22L11.5,21L15,22L15,20.5L13,19L13,13.5L21,16Z",
-                            fillColor: "#35c48a",
-                            fillOpacity: 1,
-                            anchor: new google.maps.Point(12, 12),
-                            strokeWeight: 1,
-                            strokeColor: "#fff",
-                            scale: 1.2,
-                            rotation: pos.bearing
-                        }
-                    });
-                }
-            } else if (markers[fid]) {
-                markers[fid].setMap(null);
-                delete markers[fid];
-            }
-        });
-
-        document.getElementById('mapStats').textContent = `Inbound Traffic: ${activeCount} flights | COK`;
-        updateTable(arrivals);
+        const wrapper = await res.json();
+        const data = JSON.parse(wrapper.contents);
+        
+        const flights = data?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
+        processFlights(flights);
     } catch (e) {
-        console.error("Map update failed", e);
+        console.error("Fetch Error:", e);
+        document.getElementById('status').textContent = "● OFFLINE / PROXY ERR";
+        document.getElementById('status').style.color = "var(--red)";
     }
 }
 
-function updateTable(arrivals) {
+function processFlights(flights) {
     const tbody = document.getElementById('bArr');
     tbody.innerHTML = '';
-    arrivals.forEach(f => {
+    let activeMapFlights = 0;
+    const now = Math.floor(Date.now() / 1000);
+
+    flights.forEach(f => {
         const fl = f.flight;
         const fn = fl?.identification?.number?.default;
         if (!fn || !ALLOWED.includes(fn.slice(0, 2))) return;
-        
+
+        const sch = fl.time.scheduled.arrival;
+        const est = fl.time.estimated.arrival || sch;
+        const origin = fl.airport.origin?.code?.iata;
+        const fid = fl.identification.id || fn;
+
+        // Table update
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="color:var(--teal); font-weight:700">${fn}</td>
-            <td>${fl.aircraft?.registration || '–'}</td>
-            <td>${fl.airport.origin?.code?.iata || '–'}</td>
-            <td>${new Date(fl.time.estimated.arrival * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
-            <td><span class="badge" style="color:var(--green)">${fl.status.text}</span></td>
+            <td class="fn-cell">${fn}</td>
+            <td style="color:var(--muted)">${fl.aircraft?.registration || '–'}</td>
+            <td>${origin || '–'}</td>
+            <td>${new Date(est * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
+            <td><span class="badge" style="background:rgba(53,196,138,0.1); color:var(--green)">${fl.status.text}</span></td>
         `;
         tbody.appendChild(tr);
+
+        // Map update (flights in air - arriving in next 3 hours)
+        if (est > now && est < now + 10800) {
+            activeMapFlights++;
+            updateMarker(fid, fn, origin, sch, est);
+        } else if (markers[fid]) {
+            markers[fid].setMap(null);
+            delete markers[fid];
+        }
     });
+
+    document.getElementById('mapStats').textContent = `INBOUND: ${activeMapFlights} FLIGHTS`;
 }
 
-/* ============================================================
-   UI CONTROLS
-============================================================ */
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById(tab.dataset.tab).classList.add('active');
+function updateMarker(fid, fn, originCode, sch, est) {
+    const origin = AIRPORT_DB[originCode] || { lat: 15.0, lng: 70.0 }; // Fallback
+    const now = Math.floor(Date.now() / 1000);
+    const duration = 7200; // 2h default
+    const progress = Math.max(0, Math.min(1, (now - (est - duration)) / duration));
+
+    const currentPos = {
+        lat: origin.lat + (COK_COORDS.lat - origin.lat) * progress,
+        lng: origin.lng + (COK_COORDS.lng - origin.lng) * progress
+    };
+
+    if (markers[fid]) {
+        markers[fid].setPosition(currentPos);
+    } else {
+        markers[fid] = new google.maps.Marker({
+            position: currentPos,
+            map: map,
+            title: fn,
+            icon: {
+                path: "M21,16L21,14L13,9L13,3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5L10,9L2,14L2,16L10,13.5L10,19L8,20.5L8,22L11.5,21L15,22L15,20.5L13,19L13,13.5L21,16Z",
+                fillColor: "#35c48a", fillOpacity: 1, scale: 1.1, strokeWeight: 1, strokeColor: "#fff", anchor: new google.maps.Point(12, 12)
+            }
+        });
+    }
+}
+
+// UI HANDLERS
+document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+        document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
+        t.classList.add('active');
+        const activeSec = document.getElementById(t.dataset.tab);
+        activeSec.classList.add('active');
+        
+        if (t.dataset.tab === 'map-section' && map) {
+            google.maps.event.trigger(map, 'resize');
+            map.setCenter(COK_COORDS);
+        }
     });
 });
 
-// Init
-window.onload = () => {
-    initMap();
-    updateLiveTraffic();
-    setInterval(updateLiveTraffic, 15000); // Refresh every 15s
-};
-</script>
+// Dynamic Script Loading for Google Maps using the Config key
+const script = document.createElement('script');
+script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initMap`;
+script.async = true;
+script.defer = true;
+document.head.appendChild(script);
 
-<!-- REPLACE YOUR_GOOGLE_MAPS_API_KEY BELOW -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBiURTGf2q9_DVCHuYw_6UwnXmNGwKeX_I&callback=initMap" async defer></script>
+setInterval(updateData, CONFIG.REFRESH_INTERVAL);
+</script>
 </body>
 </html>
