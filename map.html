@@ -100,11 +100,8 @@
   <script>
     const COK = { lat: 10.152, lng: 76.392 };
 
-    // Last-resort fallback ONLY — used if a flight's origin coordinates
-    // can't be read from FR24's schedule response at all. Expanded with
-    // common Indian domestic origins (IX runs some of these) plus the
-    // usual Gulf/Indian Ocean routes, but this is a safety net, not the
-    // primary source anymore — see originCoords() below.
+    // Last-resort fallback ONLY — used if FR24's schedule response doesn't
+    // include origin position data for a given airport.
     const AIRPORTS = {
       'DXB': {lat:25.253, lng:55.365}, 'SHJ': {lat:25.328, lng:55.517},
       'DOH': {lat:25.273, lng:51.608}, 'MCT': {lat:23.593, lng:58.284},
@@ -122,7 +119,6 @@
       'SLL': {lat:17.039, lng:54.091}, 'SAW': {lat:40.899, lng:29.309},
       'IST': {lat:41.275, lng:28.752}, 'AMS': {lat:52.309, lng:4.764},
       'LHR': {lat:51.470, lng:-0.454}, 'FRA': {lat:50.037, lng:8.562},
-      // Indian domestic (IX runs a handful of these)
       'PNQ': {lat:18.582, lng:73.920}, 'AMD': {lat:23.077, lng:72.635},
       'IXC': {lat:30.673, lng:76.788}, 'NAG': {lat:21.092, lng:79.047},
       'IDR': {lat:22.722, lng:75.801}, 'JAI': {lat:26.824, lng:75.812},
@@ -152,8 +148,6 @@
       document.getElementById('sTxt').textContent = txt;
     }
 
-    // Generic proxy-fallback JSON fetch, shared by the schedule call and the
-    // per-flight live lookups (both live on FR24's CORS-blocked domains).
     async function fetchJson(url, silent = false) {
       const chain = [
         {url},
@@ -169,9 +163,7 @@
           const text = await res.text();
           const i = text.indexOf('{'), j = text.lastIndexOf('}');
           const json = JSON.parse(i >= 0 && j > i ? text.slice(i, j + 1) : text);
-          if (!silent) {
-            consecutiveFailures = 0;
-          }
+          if (!silent) consecutiveFailures = 0;
           return json;
         } catch (e) { /* next */ }
       }
@@ -187,8 +179,6 @@
       return 2 * R * Math.asin(Math.sqrt(a));
     }
 
-    // FR24's own live flight-detail endpoint, keyed by the flight's own
-    // internal FR24 id (already present in the schedule payload).
     async function fetchLiveByFlightId(fid) {
       if (!fid) return null;
       const url = `https://data-live.flightradar24.com/clickhandler/?flight=${encodeURIComponent(fid)}&version=1.5`;
@@ -208,22 +198,13 @@
       }
     }
 
-    // ------------------------------------------------------------
-    // Real fix: get the origin airport's coordinates straight from
-    // FR24's schedule payload (fl.airport.origin.position), which is
-    // the same data FR24 itself uses — instead of relying on a
-    // hand-typed lookup table that will always be missing something.
-    // Only fall back to the local table if FR24 didn't send position
-    // data for that airport, and only draw a marker at all if we have
-    // *some* real coordinate for the origin — never a guessed one.
-    // ------------------------------------------------------------
     function originCoords(fl, iata) {
       const p = fl.airport?.origin?.position;
       if (p && typeof p.latitude === 'number' && typeof p.longitude === 'number') {
         return { lat: p.latitude, lng: p.longitude };
       }
       if (iata && AIRPORTS[iata]) return AIRPORTS[iata];
-      return null; // unknown — caller must skip rather than guess
+      return null;
     }
 
     function bearingDeg(lat1, lon1, lat2, lon2) {
@@ -232,6 +213,29 @@
       const y = Math.sin(Δλ) * Math.cos(φ2);
       const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
       return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    // ------------------------------------------------------------
+    // Great-circle intermediate point at fraction f (0=start, 1=end).
+    // A straight lat/lng blend cuts corners and visibly bows away from
+    // the real flight path, especially over longer legs — this follows
+    // the same curve an aircraft (and FR24) actually would.
+    // ------------------------------------------------------------
+    function geodesicInterpolate(lat1, lon1, lat2, lon2, f) {
+      const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
+      const φ1 = toRad(lat1), λ1 = toRad(lon1), φ2 = toRad(lat2), λ2 = toRad(lon2);
+      const δ = 2 * Math.asin(Math.sqrt(
+        Math.sin((φ2 - φ1) / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((λ2 - λ1) / 2) ** 2
+      ));
+      if (δ === 0) return { lat: lat1, lng: lon1 };
+      const A = Math.sin((1 - f) * δ) / Math.sin(δ);
+      const B = Math.sin(f * δ) / Math.sin(δ);
+      const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
+      const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
+      const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+      const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
+      const lng = toDeg(Math.atan2(y, x));
+      return { lat, lng };
     }
 
     // The bundled glyph's nose points to the upper-right (~NE) at rest, not
@@ -269,12 +273,12 @@
         scheduleData = await fetchJson(url);
       } catch (e) {
         setStatus('bad', 'No data');
-        return; // keep last markers rather than clearing the board
+        return;
       }
       const flights = scheduleData?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
 
       const now = Math.floor(Date.now() / 1000);
-      const candidates = []; // [flightNumber, fr24Id]
+      const candidates = [];
       flights.forEach(f => {
         const fl = f.flight;
         const fn = fl?.identification?.number?.default || '';
@@ -328,16 +332,27 @@
         } else {
           const start = originCoords(fl, origin);
           if (!start) {
-            // No live position AND no known coordinate for the origin —
-            // do not guess. Drop any stale marker and skip this flight
-            // until we have something real to show.
             if (markers.has(fn)) { map.removeLayer(markers.get(fn)); markers.delete(fn); }
             return;
           }
-          const windowSec = 10800;
+
+          // Use THIS flight's own actual scheduled air time, not a fixed
+          // window for every route — a 1.5h domestic hop and a 4h Gulf
+          // route need very different progress curves.
+          const dep = fl.time?.scheduled?.departure || fl.time?.estimated?.departure;
+          let windowSec = dep ? (est - dep) : null;
+          if (!windowSec || windowSec < 1200) {
+            // No departure time, or it's nonsensical — fall back to a
+            // distance-based estimate (~800 km/h cruise) instead of a
+            // one-size-fits-all 3 hours.
+            const distKm = haversineKm(start.lat, start.lng, COK.lat, COK.lng);
+            windowSec = Math.max(1800, (distKm / 800) * 3600);
+          }
+          windowSec = Math.min(windowSec, 12 * 3600);
+
           const progress = Math.max(0, Math.min(1, (now - (est - windowSec)) / windowSec));
-          lat = start.lat + (COK.lat - start.lat) * progress;
-          lng = start.lng + (COK.lng - start.lng) * progress;
+          const p = geodesicInterpolate(start.lat, start.lng, COK.lat, COK.lng, progress);
+          lat = p.lat; lng = p.lng;
           track = bearingDeg(start.lat, start.lng, COK.lat, COK.lng);
           isLive = false;
         }
