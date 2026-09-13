@@ -66,12 +66,14 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
       transition: transform .4s linear;
     }
+    .fr-plane.fr-grounded { opacity: .55; }
     .fr-tag {
       background: #fdf001; border: 1px solid #c0b400; color: #000;
       padding: 4px 7px; border-radius: 5px; font-family: monospace;
       font-size: 10px; line-height: 1.25; box-shadow: 0 4px 10px rgba(0,0,0,0.45);
       white-space: nowrap; font-weight: 700;
     }
+    .fr-tag.fr-grounded { background: #d9d9d9; border-color: #a8a8a8; }
     .fr-tag b { display: block; font-size: 11px; }
     .fr-tag span { font-weight: 500; opacity: .85; }
 
@@ -184,6 +186,11 @@
       const url = `https://data-live.flightradar24.com/clickhandler/?flight=${encodeURIComponent(fid)}&version=1.5`;
       try {
         const d = await fetchJson(url, true);
+        // If FR24 itself says this flight has no active live tracking
+        // (not departed, landed, or currently out of coverage), don't
+        // trust any stale trail point it might still return — treat as
+        // "no live data" so we fall back to the honest grounded marker.
+        if (d?.status?.live === false) return null;
         const trail = Array.isArray(d?.trail) ? d.trail : [];
         if (!trail.length) return null;
         let best = trail[0];
@@ -213,29 +220,6 @@
       const y = Math.sin(Δλ) * Math.cos(φ2);
       const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
       return (toDeg(Math.atan2(y, x)) + 360) % 360;
-    }
-
-    // ------------------------------------------------------------
-    // Great-circle intermediate point at fraction f (0=start, 1=end).
-    // A straight lat/lng blend cuts corners and visibly bows away from
-    // the real flight path, especially over longer legs — this follows
-    // the same curve an aircraft (and FR24) actually would.
-    // ------------------------------------------------------------
-    function geodesicInterpolate(lat1, lon1, lat2, lon2, f) {
-      const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
-      const φ1 = toRad(lat1), λ1 = toRad(lon1), φ2 = toRad(lat2), λ2 = toRad(lon2);
-      const δ = 2 * Math.asin(Math.sqrt(
-        Math.sin((φ2 - φ1) / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((λ2 - λ1) / 2) ** 2
-      ));
-      if (δ === 0) return { lat: lat1, lng: lon1 };
-      const A = Math.sin((1 - f) * δ) / Math.sin(δ);
-      const B = Math.sin(f * δ) / Math.sin(δ);
-      const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
-      const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
-      const z = A * Math.sin(φ1) + B * Math.sin(φ2);
-      const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
-      const lng = toDeg(Math.atan2(y, x));
-      return { lat, lng };
     }
 
     // The bundled glyph's nose points to the upper-right (~NE) at rest, not
@@ -335,24 +319,14 @@
             if (markers.has(fn)) { map.removeLayer(markers.get(fn)); markers.delete(fn); }
             return;
           }
-
-          // Use THIS flight's own actual scheduled air time, not a fixed
-          // window for every route — a 1.5h domestic hop and a 4h Gulf
-          // route need very different progress curves.
-          const dep = fl.time?.scheduled?.departure || fl.time?.estimated?.departure;
-          let windowSec = dep ? (est - dep) : null;
-          if (!windowSec || windowSec < 1200) {
-            // No departure time, or it's nonsensical — fall back to a
-            // distance-based estimate (~800 km/h cruise) instead of a
-            // one-size-fits-all 3 hours.
-            const distKm = haversineKm(start.lat, start.lng, COK.lat, COK.lng);
-            windowSec = Math.max(1800, (distKm / 800) * 3600);
-          }
-          windowSec = Math.min(windowSec, 12 * 3600);
-
-          const progress = Math.max(0, Math.min(1, (now - (est - windowSec)) / windowSec));
-          const p = geodesicInterpolate(start.lat, start.lng, COK.lat, COK.lng, progress);
-          lat = p.lat; lng = p.lng;
+          // No live trail from FR24 (not departed, landed, or briefly out
+          // of coverage). We have no reliable way to know how far along
+          // the route it actually is — guessing that got this wrong
+          // before, so show it parked at its real origin airport instead
+          // of a guessed midpoint. Once FR24 picks it up in the air, it
+          // will jump to its true live position automatically.
+          lat = start.lat;
+          lng = start.lng;
           track = bearingDeg(start.lat, start.lng, COK.lat, COK.lng);
           isLive = false;
         }
@@ -363,11 +337,13 @@
           ? '#8b8892'
           : (remaining < 900 ? '#ff5a5a' : (remaining < 2700 ? '#ffb238' : '#ff8a1e'));
         const rot = ((track || 0) + ICON_HEADING_OFFSET + 360) % 360;
+        const planeCls = isLive ? '' : ' fr-grounded';
+        const tagCls = isLive ? '' : ' fr-grounded';
 
         const html = `
           <div class="fr-marker">
-            <div class="fr-plane" style="transform:rotate(${rot}deg)"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="${color}" d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg></div>
-            <div class="fr-tag"><b>${fn}</b><span>${reg}</span><br><span>${origin}→COK${isLive ? '' : ' · est.'}</span></div>
+            <div class="fr-plane${planeCls}" style="transform:rotate(${rot}deg)"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="${color}" d="M21,16v-2l-8-5V3.5c0-0.8-0.7-1.5-1.5-1.5S10,2.7,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg></div>
+            <div class="fr-tag${tagCls}"><b>${fn}</b><span>${reg}</span><br><span>${origin}→COK${isLive ? '' : ' · at gate'}</span></div>
           </div>`;
 
         if (markers.has(fn)) {
@@ -389,7 +365,7 @@
             }),
             zIndexOffset: 100
           }).addTo(map);
-          m.bindPopup(`<b>${fn}</b><br>${reg}<br>${origin} → COK<br>${isLive ? 'Live FR24 position' : 'Estimated position'}<br>ETA ~ ${new Date(est*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}`);
+          m.bindPopup(`<b>${fn}</b><br>${reg}<br>${origin} → COK<br>${isLive ? 'Live FR24 position' : 'Not yet on live tracking — shown at origin airport'}<br>ETA ~ ${new Date(est*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}`);
           markers.set(fn, m);
         }
       });
