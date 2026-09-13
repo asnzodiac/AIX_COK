@@ -99,8 +99,12 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const COK = { lat: 10.152, lng: 76.392 };
-    // Fallback origin coords — only used if FR24 has no live trail yet for a
-    // flight (just after pushback, or briefly out of receiver coverage).
+
+    // Last-resort fallback ONLY — used if a flight's origin coordinates
+    // can't be read from FR24's schedule response at all. Expanded with
+    // common Indian domestic origins (IX runs some of these) plus the
+    // usual Gulf/Indian Ocean routes, but this is a safety net, not the
+    // primary source anymore — see originCoords() below.
     const AIRPORTS = {
       'DXB': {lat:25.253, lng:55.365}, 'SHJ': {lat:25.328, lng:55.517},
       'DOH': {lat:25.273, lng:51.608}, 'MCT': {lat:23.593, lng:58.284},
@@ -118,6 +122,17 @@
       'SLL': {lat:17.039, lng:54.091}, 'SAW': {lat:40.899, lng:29.309},
       'IST': {lat:41.275, lng:28.752}, 'AMS': {lat:52.309, lng:4.764},
       'LHR': {lat:51.470, lng:-0.454}, 'FRA': {lat:50.037, lng:8.562},
+      // Indian domestic (IX runs a handful of these)
+      'PNQ': {lat:18.582, lng:73.920}, 'AMD': {lat:23.077, lng:72.635},
+      'IXC': {lat:30.673, lng:76.788}, 'NAG': {lat:21.092, lng:79.047},
+      'IDR': {lat:22.722, lng:75.801}, 'JAI': {lat:26.824, lng:75.812},
+      'LKO': {lat:26.761, lng:80.889}, 'PAT': {lat:25.591, lng:85.088},
+      'VNS': {lat:25.452, lng:82.859}, 'RPR': {lat:21.180, lng:81.739},
+      'BBI': {lat:20.244, lng:85.818}, 'VTZ': {lat:17.721, lng:83.225},
+      'TRZ': {lat:10.765, lng:78.710}, 'TIR': {lat:13.633, lng:79.543},
+      'STV': {lat:21.114, lng:72.742}, 'RAJ': {lat:22.309, lng:70.780},
+      'UDR': {lat:24.618, lng:73.896}, 'ATQ': {lat:31.710, lng:74.797},
+      'GAU': {lat:26.106, lng:91.586}, 'IXR': {lat:23.318, lng:85.322},
     };
 
     const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY'];
@@ -139,8 +154,6 @@
 
     // Generic proxy-fallback JSON fetch, shared by the schedule call and the
     // per-flight live lookups (both live on FR24's CORS-blocked domains).
-    // `silent` skips touching the status pill / failure counter, so a single
-    // flight's live lookup failing doesn't flip the whole board to "bad".
     async function fetchJson(url, silent = false) {
       const chain = [
         {url},
@@ -158,29 +171,14 @@
           const json = JSON.parse(i >= 0 && j > i ? text.slice(i, j + 1) : text);
           if (!silent) {
             consecutiveFailures = 0;
-            setStatus('ok', 'Live · ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}));
           }
           return json;
         } catch (e) { /* next */ }
       }
-      if (!silent) {
-        consecutiveFailures++;
-        setStatus('bad', 'No data');
-      }
+      if (!silent) consecutiveFailures++;
       throw new Error('All fetch attempts failed');
     }
 
-    /* ============================================================
-       LIVE POSITION — straight from FR24 itself
-       ------------------------------------------------------------
-       FR24's schedule response (already fetched below) carries each
-       flight's own internal FR24 tracking id
-       (flight.identification.id, e.g. "3a1b2c4"). That id is exactly
-       what flightradar24.com's website hands to its own flight-detail
-       endpoint to draw the plane on their map — so we do the same,
-       instead of trying to re-match the flight against a different
-       (and differently-covered) data source.
-    ============================================================ */
     function haversineKm(lat1, lon1, lat2, lon2) {
       const toRad = d => d * Math.PI / 180;
       const R = 6371;
@@ -189,6 +187,8 @@
       return 2 * R * Math.asin(Math.sqrt(a));
     }
 
+    // FR24's own live flight-detail endpoint, keyed by the flight's own
+    // internal FR24 id (already present in the schedule payload).
     async function fetchLiveByFlightId(fid) {
       if (!fid) return null;
       const url = `https://data-live.flightradar24.com/clickhandler/?flight=${encodeURIComponent(fid)}&version=1.5`;
@@ -196,14 +196,11 @@
         const d = await fetchJson(url, true);
         const trail = Array.isArray(d?.trail) ? d.trail : [];
         if (!trail.length) return null;
-        // Trail ordering isn't guaranteed, so pick the point with the
-        // newest timestamp rather than assuming trail[0] is "now".
         let best = trail[0];
         for (const t of trail) { if ((t.ts || 0) > (best.ts || 0)) best = t; }
         const lat = best.lat, lon = best.lng, hd = best.hd;
         if (typeof lat !== 'number' || typeof lon !== 'number') return null;
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
-        // Belt-and-braces sanity check against ever plotting off the map.
         if (haversineKm(lat, lon, COK.lat, COK.lng) > 7000) return null;
         return { lat, lon, track: typeof hd === 'number' ? hd : null };
       } catch (e) {
@@ -211,8 +208,24 @@
       }
     }
 
-    // Great-circle initial bearing — only used for the grey "estimated"
-    // fallback marker, so it at least points toward COK.
+    // ------------------------------------------------------------
+    // Real fix: get the origin airport's coordinates straight from
+    // FR24's schedule payload (fl.airport.origin.position), which is
+    // the same data FR24 itself uses — instead of relying on a
+    // hand-typed lookup table that will always be missing something.
+    // Only fall back to the local table if FR24 didn't send position
+    // data for that airport, and only draw a marker at all if we have
+    // *some* real coordinate for the origin — never a guessed one.
+    // ------------------------------------------------------------
+    function originCoords(fl, iata) {
+      const p = fl.airport?.origin?.position;
+      if (p && typeof p.latitude === 'number' && typeof p.longitude === 'number') {
+        return { lat: p.latitude, lng: p.longitude };
+      }
+      if (iata && AIRPORTS[iata]) return AIRPORTS[iata];
+      return null; // unknown — caller must skip rather than guess
+    }
+
     function bearingDeg(lat1, lon1, lat2, lon2) {
       const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
       const φ1 = toRad(lat1), φ2 = toRad(lat2), Δλ = toRad(lon2 - lon1);
@@ -255,11 +268,11 @@
       try {
         scheduleData = await fetchJson(url);
       } catch (e) {
-        return; // keep last markers
+        setStatus('bad', 'No data');
+        return; // keep last markers rather than clearing the board
       }
       const flights = scheduleData?.result?.response?.airport?.pluginData?.schedule?.arrivals?.data || [];
 
-      // Only look up live positions for flights we're actually about to show
       const now = Math.floor(Date.now() / 1000);
       const candidates = []; // [flightNumber, fr24Id]
       flights.forEach(f => {
@@ -301,10 +314,8 @@
         const est = fl.time?.estimated?.arrival || fl.time?.scheduled?.arrival || 0;
         if (est < now - 1800 || est > now + 14400) return;
 
-        seen.add(fn);
         const origin = fl.airport?.origin?.code?.iata || '???';
         const reg = fl.aircraft?.registration || '–';
-        const start = AIRPORTS[origin] || { lat: 15, lng: 70 };
 
         const liveHit = live && live.get(fn);
         let lat, lng, track, isLive;
@@ -315,6 +326,14 @@
           track = liveHit.track != null ? liveHit.track : bearingDeg(liveHit.lat, liveHit.lon, COK.lat, COK.lng);
           isLive = true;
         } else {
+          const start = originCoords(fl, origin);
+          if (!start) {
+            // No live position AND no known coordinate for the origin —
+            // do not guess. Drop any stale marker and skip this flight
+            // until we have something real to show.
+            if (markers.has(fn)) { map.removeLayer(markers.get(fn)); markers.delete(fn); }
+            return;
+          }
           const windowSec = 10800;
           const progress = Math.max(0, Math.min(1, (now - (est - windowSec)) / windowSec));
           lat = start.lat + (COK.lat - start.lat) * progress;
@@ -323,6 +342,7 @@
           isLive = false;
         }
 
+        seen.add(fn);
         const remaining = est - now;
         const color = !isLive
           ? '#8b8892'
