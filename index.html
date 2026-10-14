@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AIX COK"/>
+<meta name="theme-color" content="#0B0B0D"/>
+<title>AIX SEC OPS – COK</title>
+<link rel="manifest" href="./manifest.json"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
+<link rel="icon" href="./icon-192.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0b0b0d;--surface:#16151b;--card:#131218;--border:#27252e;--text:#f3f1ec;--muted:#9a97a3;
+  --accent:#e2394a;--accent2:#ff8a1e;--teal:#2bb8b0;--green:#35c48a;--yellow:#ffb238;--red:#ff5a5a;--grey:#55525c;
+  --mono:'JetBrains Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--radius:10px;--shadow:0 10px 30px rgba(0,0,0,.45);
+}
+[data-theme="light"]{
+  --bg:#eef0f1;--surface:#fff;--card:#fff;--border:#dcdfe3;--text:#16151a;--muted:#5f5d66;
+  --accent:#c8202f;--accent2:#e06a00;--teal:#0f8f88;--green:#0e9a63;--yellow:#b9720a;--red:#d6362a;--grey:#9a9aa2;
+  --shadow:0 4px 18px rgba(20,20,25,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.5}
+body{min-height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
+:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 20px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:24px;height:24px;background:linear-gradient(135deg,var(--accent) 52%,var(--accent2) 52%);clip-path:polygon(0 100%,100% 100%,100% 20%,40% 0,0 30%)}
+.brand-title{display:block;font:700 1.05rem var(--mono);letter-spacing:.02em}
+.brand-sub{display:block;font:.75rem var(--mono);color:var(--muted);letter-spacing:.06em}
+.topbar-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font:.82rem var(--mono);background:var(--card);color:var(--muted);border:1px solid var(--border)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}.dot.warn{background:var(--yellow)}
+.dot.bad{background:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.chip-btn,.map-link,.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);font:600 .85rem var(--mono);cursor:pointer;text-decoration:none;white-space:nowrap;transition:border-color .15s}
+.chip-btn,.map-link{color:var(--muted)}
+.chip-btn:hover,.map-link:hover,.btn:hover{border-color:var(--accent2);color:var(--text)}
+.btn{font-family:var(--sans);padding:11px 20px;font-size:.95rem}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1.05rem;cursor:pointer}
+.icon-btn:hover{background:var(--card)}
+.icon-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+#errorBanner{display:none;padding:10px 20px;background:#39121a;color:#ffb3ae;font:.85rem var(--mono);border-bottom:1px solid var(--red)}
+[data-theme="light"] #errorBanner{background:#fdecec;color:#8a1f1f}
+
+/* tabs */
+.tabs{display:flex;gap:28px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.tab{flex-shrink:0;padding:14px 2px;border:none;border-bottom:3px solid transparent;background:transparent;color:var(--muted);font:600 1rem var(--sans);cursor:pointer}
+.tab:hover{color:var(--text)}.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+
+/* layout */
+.section{display:none;max-width:1200px;margin:0 auto;padding:20px 20px 120px}
+.section.active{display:block}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.stat b{display:block;font:700 1.75rem/1.1 var(--mono)}
+.stat span{font-size:.85rem;color:var(--muted)}
+.stat.warn b{color:var(--yellow)}.stat.bad b{color:var(--red)}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:28px 0 12px}
+.sec-title{display:flex;align-items:center;gap:10px;font-size:1.2rem;font-weight:600}
+.sec-title::before{content:'';width:4px;height:20px;border-radius:2px;background:linear-gradient(var(--accent),var(--accent2))}
+.sec-updated{font:.8rem var(--mono);color:var(--muted)}
+
+/* tables */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius);border:1px solid var(--border);background:var(--card)}
+table{width:100%;min-width:720px;border-collapse:collapse;font-size:.95rem}
+thead th{background:var(--surface);color:var(--muted);font:600 .75rem var(--mono);text-transform:uppercase;letter-spacing:.07em;padding:13px 12px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);--status:transparent}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface)}
+td{padding:14px 12px;text-align:center;vertical-align:middle;white-space:nowrap;font-variant-numeric:tabular-nums}
+td:first-child,th:first-child{text-align:left;padding-left:18px;position:sticky;left:0;background:inherit;box-shadow:inset 4px 0 0 var(--status)}
+tbody td:first-child{background:var(--card)}tbody tr:hover td:first-child{background:var(--surface)}
+tr.onTime{--status:var(--green)}tr.delay{--status:var(--yellow)}tr.heavyDelay{--status:var(--red)}tr.cancelled{--status:var(--grey);color:var(--muted)}
+tr.cancelled td:not(:last-child){text-decoration:line-through}
+.logo{height:18px;width:auto;max-width:34px;object-fit:contain;vertical-align:middle;margin-right:8px}
+.fn{font:700 1rem var(--mono);color:var(--teal)}
+.reg{font:.9rem var(--mono);color:var(--muted)}
+.mono{font-family:var(--mono)}
+.badge{display:inline-block;padding:4px 12px;border-radius:999px;font:600 .8rem var(--mono)}
+.badge.green{background:rgba(53,196,138,.16);color:var(--green)}.badge.yellow{background:rgba(255,178,56,.16);color:var(--yellow)}
+.badge.red{background:rgba(255,90,90,.16);color:var(--red)}.badge.grey{background:rgba(139,136,146,.18);color:var(--muted)}
+.dly{font:.8rem var(--mono);color:var(--yellow);margin-left:4px}
+.empty{padding:36px 20px;color:var(--muted);font-size:1rem}
+.empty span{font-size:1.8rem;display:block;margin-bottom:6px;opacity:.6}
+.turn-arr{font:700 .95rem var(--mono);color:var(--green)}.turn-dep{font:700 .95rem var(--mono);color:var(--accent2);margin-top:2px}
+.route-tags{display:flex;flex-wrap:wrap;gap:8px;padding-top:18px}
+.route-tag{font:.8rem var(--mono);color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:5px 12px}
+.route-tag b{color:var(--text)}
+.skeleton{height:18px;border-radius:4px;background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:var(--bg);padding:12px 22px;border-radius:999px;font:600 .95rem var(--sans);box-shadow:var(--shadow);z-index:999;transition:transform .3s;max-width:90vw}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* time filter */
+.flt{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
+.flt-label{font:600 .8rem var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.flt label{display:flex;align-items:center;gap:8px;font-size:.95rem;color:var(--muted)}
+.flt input[type=time]{font:600 1rem var(--mono);padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);color-scheme:dark}
+[data-theme="light"] .flt input[type=time]{color-scheme:light}
+.flt input.on{border-color:var(--accent2)}
+.flt-info{margin-left:auto;font:.85rem var(--mono);color:var(--muted)}
+tr[hidden]{display:none}
+
+/* larger type for the tracking panel from flight-follow.js */
+html #ffPanel{font-size:.92rem;width:340px;box-shadow:var(--shadow)}
+html #ffPanelHeader{font-size:.95rem;padding:13px 16px}
+html .ff-item{padding:12px 16px}
+html .ff-fn{font-size:1.05rem}
+html .ff-meta{font-size:.85rem;margin-bottom:8px}
+html .ff-bar-track{height:8px}
+html .ff-empty{font-size:.9rem;padding:20px 16px}
+html #ffAlertBtn{font-size:.9rem;padding:13px}
+html .ff-check{width:20px;height:20px;accent-color:var(--accent);cursor:pointer}
+
+@media(max-width:640px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .topbar,.section,.tabs{padding-left:14px;padding-right:14px}
+  .brand-sub{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span><span class="brand-title">AIX SEC OPS</span><span class="brand-sub">COCHIN · COK</span></span>
+  </div>
+  <div class="topbar-actions">
+    <div class="pill" aria-live="polite"><span class="dot" id="sDot"></span><span id="sTxt">Idle</span></div>
+    <button class="chip-btn" id="proxyBtn" title="Toggle proxy for iOS/Safari">Proxy: Auto</button>
+    <a class="map-link" href="./map.html">🗺 Map</a>
+    <button class="icon-btn" id="refreshBtn" aria-label="Refresh now" title="Refresh now">↻</button>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">◐</button>
+    <button class="icon-btn primary" id="notifyBtn" aria-label="Enable notifications" title="Enable notifications">🔔</button>
+  </div>
+</div>
+<div id="errorBanner" role="alert" aria-live="assertive"></div>
+
+<div class="tabs" role="tablist" aria-label="Sections">
+  <button class="tab active" role="tab" aria-selected="true" data-tab="flights">Arrivals &amp; Departures</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="turnaround">Turnaround</button>
+</div>
+
+<div class="section active" id="flights" role="tabpanel">
+  <div class="stats">
+    <div class="stat"><b id="stArr">–</b><span>Arrivals</span></div>
+    <div class="stat"><b id="stDep">–</b><span>Departures</span></div>
+    <div class="stat warn"><b id="stDly">–</b><span>Delayed</span></div>
+    <div class="stat bad"><b id="stCnx">–</b><span>Cancelled</span></div>
+  </div>
+
+  <div class="flt" role="group" aria-label="Filter by time">
+    <span class="flt-label">Time (IST)</span>
+    <label>From <input type="time" id="fltFrom"/></label>
+    <label>To <input type="time" id="fltTo"/></label>
+    <button class="btn" id="fltClear">Clear</button>
+    <span class="flt-info" id="fltInfo"></span>
+  </div>
+
+  <div class="sec-head"><span class="sec-title">Arrivals</span><span class="sec-updated" id="lastUpdated"></span></div>
+  <div class="table-wrap">
+    <table id="tArr">
+      <thead><tr><th>Flight</th><th>Reg</th><th>From</th><th>ETA</th><th>STA</th><th>Type</th><th>Status</th><th class="ff-th">Track</th></tr></thead>
+      <tbody id="bArr"></tbody>
+    </table>
+  </div>
+
+  <div class="sec-head"><span class="sec-title">Departures</span></div>
+  <div class="table-wrap">
+    <table id="tDep">
+      <thead><tr><th>Flight</th><th>Reg</th><th>To</th><th>ETD</th><th>STD</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody id="bDep"></tbody>
+    </table>
+  </div>
+
+  <div style="text-align:center;margin-top:24px"><button class="btn" id="earlierBtn">Load earlier flights</button></div>
+</div>
+
+<div class="section" id="turnaround" role="tabpanel">
+  <div class="sec-head"><span class="sec-title">Turnaround matches</span></div>
+  <div class="table-wrap">
+    <table id="tTurn">
+      <thead><tr><th>Pair</th><th>Reg</th><th>From</th><th>To</th><th>ETA / ETD</th><th>STA / STD</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody id="bTurn"></tbody>
+    </table>
+  </div>
+  <div class="route-tags">
+    <span class="route-tag"><b>IX</b> Air India Express</span><span class="route-tag"><b>AK/FD</b> AirAsia</span>
+    <span class="route-tag"><b>UL</b> SriLankan</span><span class="route-tag"><b>J9</b> Jazeera</span>
+    <span class="route-tag"><b>FZ</b> flydubai</span><span class="route-tag"><b>WY</b> Oman Air</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const AIRPORT='cok';
+const ALLOWED=['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY','QR'];
+const FR24_BASE=`https://api.flightradar24.com/common/v1/airport.json?code=${AIRPORT}`;
+const BRANDFETCH_ID='1idBLQ1djCDndBUmUVs';
+const PROXIES=[
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+];
+
+let proxyMode=localStorage.getItem('cok_proxy')||'auto';
+let theme=localStorage.getItem('cok_theme')||'dark';
+let baseTs=Math.floor(Date.now()/1000);
+let loading=false,consecutiveFailures=0;
+const lastFetch=new Map(),notified=new Set();
+// One row per flight, keyed by flight number + scheduled time.
+// (FR24's internal id is often null early on and filled in later, which used to create a second row.)
+const rowMap={arrivals:new Map(),departures:new Map()};
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent);
+
+const escapeHtml=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function toIST(ts){
+  if(!ts) return '–';
+  try{return new Date(ts*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false})}catch{return '–'}
+}
+window.toIST=toIST;
+const delayMin=(sch,est)=>(sch&&est)?Math.round((est-sch)/60):0;
+function rowClass(txt,d){
+  if((txt||'').toLowerCase().includes('cancel')) return 'cancelled';
+  return d>30?'heavyDelay':d>5?'delay':'onTime';
+}
+const badgeClass=c=>({onTime:'green',delay:'yellow',heavyDelay:'red'}[c]||'grey');
+
+function inWindow(type,sch,est,act){
+  const now=Math.floor(Date.now()/1000),t=sch||est||0;
+  const inRange=t>=now-3600&&t<=now+72000;
+  const lagging=sch&&now>sch&&(!act||act>now);
+  const recent=type==='arrivals'?(act&&act>=now-10800):(act&&act>=now-600);
+  return inRange||lagging||recent;
+}
+function cleanOld(type,tbody){
+  const now=Math.floor(Date.now()/1000),cutoff=type==='arrivals'?now-10800:now-600;
+  Array.from(tbody.rows).forEach(r=>{
+    const act=parseInt(r.dataset.act)||0;
+    if(act&&act<cutoff){rowMap[type].delete(r.dataset.fid);r.remove();}
+  });
+}
+function sortByScheduled(tbody){
+  Array.from(tbody.rows).sort((a,b)=>(parseInt(a.dataset.sch)||0)-(parseInt(b.dataset.sch)||0)).forEach(r=>tbody.appendChild(r));
+}
+
+function getLogo(fn){
+  if(!fn) return '';
+  if(fn.startsWith('AK')||fn.startsWith('FD')) return 'https://cdn.flightradar24.com/assets/airlines/logotypes/25.png';
+  const MAP={IX:'airindiaexpress.com',AI:'airindia.com',EY:'etihad.com',QR:'qatarairways.com',WY:'omanair.com',
+    J9:'jazeeraairways.com',G9:'airarabia.com','3L':'airarabia.com',UL:'srilankan.com',FZ:'flydubai.com',
+    EK:'emirates.com',SV:'saudia.com',GF:'gulfair.com',SG:'spicejet.com','6E':'goindigo.in'};
+  const d=MAP[fn.slice(0,2)];
+  return d?`https://cdn.brandfetch.io/${d}/logo.${fn.startsWith('FZ')?'svg':'png'}?w=400&h=120&c=${BRANDFETCH_ID}`:'';
+}
+const logoImg=fn=>{const l=getLogo(fn);return l?`<img class="logo" src="${escapeHtml(l)}" alt="" loading="lazy" onerror="this.style.display='none'">`:''};
+
+async function fetchJson(url){
+  const useProxy=proxyMode==='on'||(proxyMode==='auto'&&isIOS);
+  const chain=useProxy?[...PROXIES.map(p=>({url:p(url)})),{url}]:[{url},...PROXIES.map(p=>({url:p(url)}))];
+  for(const a of chain){
+    try{
+      setStatus('warn','Loading…');
+      const ctrl=new AbortController(),tid=setTimeout(()=>ctrl.abort(),12000);
+      const res=await fetch(a.url,{signal:ctrl.signal,cache:'no-store'});
+      clearTimeout(tid);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const text=await res.text(),i=text.indexOf('{'),j=text.lastIndexOf('}');
+      const json=JSON.parse(i>=0&&j>i?text.slice(i,j+1):text);
+      setStatus('ok','Live · '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}));
+      clearError();consecutiveFailures=0;
+      return json;
+    }catch(e){}
+  }
+  consecutiveFailures++;
+  setStatus('bad','No data');
+  showError(consecutiveFailures>2?`Could not load flights (${consecutiveFailures} attempts in a row). Backing off — check connection or toggle Proxy.`:'Could not load flights. Check connection or toggle Proxy.');
+  throw new Error('All fetch attempts failed');
+}
+function setStatus(k,t){document.getElementById('sDot').className='dot'+(k?' '+k:'');document.getElementById('sTxt').textContent=t}
+function showError(m){const b=document.getElementById('errorBanner');b.textContent=m;b.style.display='block'}
+function clearError(){document.getElementById('errorBanner').style.display='none'}
+
+const canNotify=()=>'Notification' in window;
+function notify(fn,msg){
+  const key=fn+msg;if(notified.has(key)) return;notified.add(key);
+  if(canNotify()&&Notification.permission==='granted'){try{new Notification(`✈ ${fn}`,{body:msg,icon:'icon-192.png'})}catch{}}
+}
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+window.showToast=showToast;
+
+function shouldFetch(key,minMs=25000){
+  const now=Date.now();
+  if(now-(lastFetch.get(key)||0)>=minMs){lastFetch.set(key,now);return true}
+  return false;
+}
+const etaCell=(est,sch,d)=>toIST(est||sch)+(d>0?`<span class="dly">+${d}</span>`:'');
+const placeholder=(cols,icon,msg)=>`<tr data-skeleton="1"><td colspan="${cols}" class="empty"><span>${icon}</span>${msg}</td></tr>`;
+
+async function loadFlights(type,ts,force=false){
+  if(!force&&!shouldFetch(`${type}:${ts}`)) return;
+  const url=`${FR24_BASE}&plugin-setting[schedule][mode]=${type}&plugin-setting[schedule][timestamp]=${ts}&limit=100`;
+  let json;try{json=await fetchJson(url)}catch{return}
+
+  const flights=json?.result?.response?.airport?.pluginData?.schedule?.[type]?.data||[];
+  const tbody=document.getElementById(type==='arrivals'?'bArr':'bDep');
+  const isDep=type==='departures',map=rowMap[type];
+  tbody.querySelectorAll('[data-skeleton]').forEach(r=>r.remove()); // all placeholders, not just one
+
+  flights.forEach(f=>{
+    const fl=f.flight,fn=fl?.identification?.number?.default||'';
+    if(!fn||!ALLOWED.includes(fn.slice(0,2))) return;
+    const sch=isDep?fl.time.scheduled?.departure:fl.time.scheduled?.arrival;
+    const est=isDep?fl.time.estimated?.departure:fl.time.estimated?.arrival;
+    const act=isDep?fl.time.actual?.departure:fl.time.actual?.arrival;
+    if(!inWindow(type,sch,est,act)) return;
+
+    const key=`${fn}|${sch||0}`;
+    const dly=delayMin(sch,est),statusTxt=fl.status?.text||'–',cls=rowClass(statusTxt,dly);
+    const existing=map.get(key);
+
+    if(existing){
+      const old=parseInt(existing.dataset.delay)||0;
+      existing.cells[3].innerHTML=etaCell(est,sch,dly);
+      existing.cells[6].innerHTML=`<span class="badge ${badgeClass(cls)}">${escapeHtml(statusTxt)}</span>`;
+      existing.className=cls;
+      existing.dataset.delay=dly;existing.dataset.est=est||0;existing.dataset.act=act||0;
+      const reg=fl.aircraft?.registration;
+      if(reg&&existing.cells[1].textContent.trim()==='–') existing.cells[1].textContent=reg;
+      if(dly>5&&dly>old) notify(fn,`Delayed by ${dly} min`);
+      return;
+    }
+
+    const reg=fl.aircraft?.registration||'–';
+    const place=isDep?(fl.airport.destination?.code?.iata||'–'):(fl.airport.origin?.code?.iata||'–');
+    const model=fl.aircraft?.model?.code||fl.aircraft?.model?.text||'–';
+    const tr=document.createElement('tr');
+    tr.dataset.fid=key; // flight-follow.js uses data-fid as its identity
+    tr.dataset.sch=sch||0;tr.dataset.est=est||0;tr.dataset.act=act||0;tr.dataset.delay=dly;
+    tr.className=cls;
+    tr.innerHTML=`
+      <td class="fn">${logoImg(fn)}${escapeHtml(fn)}</td>
+      <td class="reg">${escapeHtml(reg)}</td>
+      <td>${escapeHtml(place)}</td>
+      <td class="mono">${etaCell(est,sch,dly)}</td>
+      <td class="mono">${toIST(sch)}</td>
+      <td>${escapeHtml(model)}</td>
+      <td><span class="badge ${badgeClass(cls)}">${escapeHtml(statusTxt)}</span></td>`;
+    tbody.appendChild(tr);
+    map.set(key,tr);
+  });
+
+  cleanOld(type,tbody);
+  sortByScheduled(tbody);
+  if(!tbody.rows.length) tbody.innerHTML=placeholder(isDep?7:8,'✈','No flights in range');
+  document.getElementById('lastUpdated').textContent=`Updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false})} IST`;
+}
+
+/* ---- time filter: matches ETA/ETD (falls back to scheduled) by IST time of day ---- */
+const toMin=v=>{if(!v) return null;const [h,m]=v.split(':').map(Number);return h*60+m};
+const istMin=ts=>Math.floor(((ts+19800)%86400)/60);
+function applyFilter(){
+  const fv=document.getElementById('fltFrom').value,tv=document.getElementById('fltTo').value;
+  const f=toMin(fv),t=toMin(tv),active=f!=null||t!=null;
+  document.getElementById('fltFrom').classList.toggle('on',f!=null);
+  document.getElementById('fltTo').classList.toggle('on',t!=null);
+  const from=f==null?0:f,to=t==null?1439:t;
+  let shown=0,total=0;
+  ['bArr','bDep','bTurn'].forEach(id=>{
+    Array.from(document.getElementById(id).rows).forEach(r=>{
+      if(r.dataset.skeleton) return;
+      const ts=parseInt(r.dataset.est)||parseInt(r.dataset.sch)||0;
+      let ok=true;
+      if(active&&ts){const m=istMin(ts);ok=from<=to?(m>=from&&m<=to):(m>=from||m<=to)} // from>to = overnight range
+      r.hidden=!ok;
+      if(id!=='bTurn'){total++;if(ok)shown++}
+    });
+  });
+  document.getElementById('fltInfo').textContent=active?`Showing ${shown} of ${total} flights`:'';
+}
+['fltFrom','fltTo'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  localStorage.setItem('cok_flt',JSON.stringify([fltFrom.value,fltTo.value]));
+  applyFilter();updateStats();
+}));
+document.getElementById('fltClear').addEventListener('click',()=>{
+  fltFrom.value='';fltTo.value='';localStorage.removeItem('cok_flt');applyFilter();updateStats();
+});
+try{const s=JSON.parse(localStorage.getItem('cok_flt')||'null');if(s){fltFrom.value=s[0]||'';fltTo.value=s[1]||''}}catch{}
+
+function updateStats(){
+  applyFilter();
+  const real=id=>Array.from(document.getElementById(id).rows).filter(r=>!r.dataset.skeleton&&!r.hidden);
+  const a=real('bArr'),d=real('bDep'),all=[...a,...d];
+  document.getElementById('stArr').textContent=a.length;
+  document.getElementById('stDep').textContent=d.length;
+  document.getElementById('stDly').textContent=all.filter(r=>r.classList.contains('delay')||r.classList.contains('heavyDelay')).length;
+  document.getElementById('stCnx').textContent=all.filter(r=>r.classList.contains('cancelled')).length;
+}
+
+function readRows(id,placeKey,timeKey){
+  const m=new Map();
+  Array.from(document.getElementById(id).rows).forEach(r=>{
+    if(r.dataset.skeleton||r.cells.length<6) return;
+    const reg=r.cells[1].textContent.trim();
+    if(!reg||reg==='–') return;
+    const d={fn:r.cells[0].textContent.trim(),reg,[placeKey]:r.cells[2].textContent.trim(),
+      [timeKey]:parseInt(r.dataset.est)||parseInt(r.dataset.sch)||0,sch:parseInt(r.dataset.sch)||0,
+      dly:parseInt(r.dataset.delay)||0,model:r.cells[5].textContent.trim()};
+    if(!m.has(reg)) m.set(reg,[]);
+    m.get(reg).push(d);
+  });
+  return m;
+}
+
+function buildTurnarounds(){
+  const rArr=readRows('bArr','from','eta'),rDep=readRows('bDep','to','etd');
+  const tbody=document.getElementById('bTurn');
+  tbody.innerHTML='';
+  let count=0;
+  for(const [reg,arrs] of rArr){
+    if(!rDep.has(reg)) continue;
+    const deps=rDep.get(reg).sort((a,b)=>a.etd-b.etd),used=new Set();
+    arrs.sort((a,b)=>a.eta-b.eta).forEach(arr=>{
+      // each arrival pairs with the NEXT departure of that aircraft only — one pair per turnaround
+      const dep=deps.find(d=>!used.has(d)&&d.etd>arr.eta&&d.etd-arr.eta<=9000);
+      if(!dep) return;
+      used.add(dep);
+      const maxDly=Math.max(arr.dly,dep.dly),cls=rowClass('',maxDly);
+      const tr=document.createElement('tr');
+      tr.className=cls;tr.dataset.sch=arr.sch||0;tr.dataset.est=arr.eta||0;
+      tr.innerHTML=`
+        <td><div class="turn-arr">${logoImg(arr.fn)}${escapeHtml(arr.fn)}</div><div class="turn-dep">↳ ${escapeHtml(dep.fn)}</div></td>
+        <td class="reg">${escapeHtml(reg)}</td>
+        <td>${escapeHtml(arr.from)}</td><td>${escapeHtml(dep.to)}</td>
+        <td class="mono">${toIST(arr.eta)} / ${toIST(dep.etd)}</td>
+        <td class="mono">${toIST(arr.sch)} / ${toIST(dep.sch)}</td>
+        <td>${escapeHtml(arr.model||'–')}</td>
+        <td><span class="badge ${badgeClass(cls)}">${maxDly>0?'+'+maxDly+' min':'On time'}</span></td>`;
+      tbody.appendChild(tr);count++;
+    });
+  }
+  sortByScheduled(tbody);
+  if(!count) tbody.innerHTML=placeholder(8,'🔄','No turnarounds detected yet');
+  else applyFilter();
+}
+
+async function loadAll(force=false){
+  if(loading&&!force) return;
+  loading=true;
+  try{
+    baseTs=Math.floor(Date.now()/1000);
+    const windows=[-1,0,1,2,3,4].map(i=>baseTs+i*6*3600);
+    await Promise.allSettled(windows.flatMap(ts=>[loadFlights('arrivals',ts,force),loadFlights('departures',ts,force)]));
+    buildTurnarounds();updateStats();
+  }finally{loading=false}
+}
+
+document.getElementById('earlierBtn').addEventListener('click',async()=>{
+  baseTs-=6*3600;
+  await Promise.allSettled([loadFlights('arrivals',baseTs,true),loadFlights('departures',baseTs,true)]);
+  buildTurnarounds();updateStats();showToast('Earlier flights loaded');
+});
+
+const proxyLabels=['auto','on','off'];
+function updateProxyBtn(){document.getElementById('proxyBtn').textContent=`Proxy: ${proxyMode[0].toUpperCase()+proxyMode.slice(1)}`}
+document.getElementById('proxyBtn').addEventListener('click',()=>{
+  proxyMode=proxyLabels[(proxyLabels.indexOf(proxyMode)+1)%3];
+  localStorage.setItem('cok_proxy',proxyMode);updateProxyBtn();showToast(`Proxy: ${proxyMode}`);
+  lastFetch.clear();loadAll(true);
+});
+updateProxyBtn();
+
+function applyTheme(){
+  document.documentElement.dataset.theme=theme==='light'?'light':'dark';
+  document.getElementById('themeBtn').textContent=theme==='dark'?'☀':'☾';
+}
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  theme=theme==='dark'?'light':'dark';localStorage.setItem('cok_theme',theme);applyTheme();
+});
+applyTheme();
+
+document.getElementById('notifyBtn').addEventListener('click',async()=>{
+  if(!canNotify()){showToast('Notifications not supported on this browser');return}
+  if(Notification.permission==='granted'){showToast('Notifications already enabled ✓');return}
+  const p=await Notification.requestPermission();
+  showToast(p==='granted'?'Notifications enabled ✓':'Notifications blocked');
+});
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false')});
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  btn.classList.add('active');btn.setAttribute('aria-selected','true');
+  document.getElementById(btn.dataset.tab).classList.add('active');
+  if(btn.dataset.tab==='turnaround') buildTurnarounds();
+}));
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+}
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  const b=document.createElement('button');
+  b.className='btn primary';b.textContent='📲 Install App';
+  b.style.cssText='position:fixed;top:calc(70px + env(safe-area-inset-top));right:14px;z-index:500;box-shadow:0 4px 20px rgba(226,57,74,.5)';
+  b.onclick=()=>{b.remove();deferredPrompt.prompt();deferredPrompt=null};
+  document.body.appendChild(b);
+});
+
+// initial skeletons
+['bArr','bDep'].forEach(id=>{
+  const tb=document.getElementById(id),cols=id==='bArr'?8:7;
+  for(let i=0;i<4;i++) tb.insertAdjacentHTML('beforeend',`<tr data-skeleton="1"><td colspan="${cols}"><div class="skeleton" style="width:${55+Math.random()*35}%"></div></td></tr>`);
+});
+
+document.getElementById('refreshBtn').addEventListener('click',()=>{lastFetch.clear();loadAll(true);showToast('Refreshing…')});
+
+const BASE_POLL_MS=30000,MAX_POLL_MS=5*60000;
+let pollTimer;
+function schedulePoll(){
+  clearTimeout(pollTimer);
+  const delay=consecutiveFailures>0?Math.min(MAX_POLL_MS,BASE_POLL_MS*Math.pow(2,Math.min(consecutiveFailures,5))):BASE_POLL_MS;
+  pollTimer=setTimeout(async()=>{await loadAll(false);schedulePoll()},delay);
+}
+loadAll(true);schedulePoll();
+window.addEventListener('online',()=>{lastFetch.clear();loadAll(true);showToast('Back online – refreshing…');schedulePoll()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) loadAll(false)});
+</script>
+<script src="flight-follow.js"></script>
+</body>
+</html>
