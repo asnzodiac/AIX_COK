@@ -1,0 +1,1999 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AIX COK">
+<meta name="theme-color" content="#0B0B0D">
+<title>AIX SEC OPS – COK</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:#0b0b0d;
+  --surface:#16151b;
+  --card:#131218;
+  --border:#27252e;
+  --text:#f3f1ec;
+  --muted:#9a97a3;
+  --accent:#e2394a;
+  --accent2:#ff8a1e;
+  --teal:#2bb8b0;
+  --green:#35c48a;
+  --yellow:#ffb238;
+  --red:#ff5a5a;
+  --grey:#77737f;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+  --radius:10px;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+
+[data-theme="light"] {
+  --bg:#eef0f1;
+  --surface:#fff;
+  --card:#fff;
+  --border:#dcdfe3;
+  --text:#16151a;
+  --muted:#5f5d66;
+  --accent:#c8202f;
+  --accent2:#e06a00;
+  --teal:#0f8f88;
+  --green:#0e9a63;
+  --yellow:#b9720a;
+  --red:#d6362a;
+  --grey:#9a9aa2;
+  --shadow:0 4px 18px rgba(20,20,25,.1);
+}
+
+* {
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,body {
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+
+html {
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.4;
+}
+
+body {
+  position:fixed;
+  inset:0;
+}
+
+button,input {
+  font:inherit;
+}
+
+button {
+  touch-action:manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline:2px solid var(--accent2);
+  outline-offset:2px;
+}
+
+.app {
+  width:100%;
+  height:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+
+/* HEADER */
+
+.topbar {
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-height:48px;
+  padding:5px 10px;
+  padding-top:calc(5px + env(safe-area-inset-top));
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+}
+
+.brand {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+}
+
+.brand-mark {
+  width:19px;
+  height:19px;
+  flex:none;
+  background:linear-gradient(135deg,var(--accent) 52%,var(--accent2) 52%);
+  clip-path:polygon(0 100%,100% 100%,100% 20%,40% 0,0 30%);
+}
+
+.brand-title {
+  display:block;
+  font:700 .83rem var(--mono);
+  white-space:nowrap;
+}
+
+.brand-sub {
+  display:block;
+  font:.58rem var(--mono);
+  color:var(--muted);
+  letter-spacing:.05em;
+}
+
+.topbar-actions {
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex:none;
+}
+
+.pill {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 7px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--card);
+  color:var(--muted);
+  font:.65rem var(--mono);
+  white-space:nowrap;
+}
+
+.dot {
+  width:7px;
+  height:7px;
+  flex:none;
+  border-radius:50%;
+  background:var(--muted);
+}
+
+.dot.ok {
+  background:var(--green);
+  box-shadow:0 0 5px var(--green);
+}
+
+.dot.warn {
+  background:var(--yellow);
+}
+
+.dot.bad {
+  background:var(--red);
+  animation:pulse 1s infinite;
+}
+
+@keyframes pulse {
+  50% { opacity:.35; }
+}
+
+.icon-btn {
+  width:31px;
+  height:31px;
+  flex:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:transparent;
+  color:var(--text);
+  text-decoration:none;
+  font-size:.9rem;
+  cursor:pointer;
+}
+
+.icon-btn.primary {
+  background:var(--accent);
+  border-color:var(--accent);
+  color:white;
+}
+
+#errorBanner {
+  display:none;
+  flex:none;
+  max-height:60px;
+  overflow:auto;
+  padding:5px 10px;
+  background:#39121a;
+  color:#ffb3ae;
+  font:.7rem var(--mono);
+  border-bottom:1px solid var(--red);
+}
+
+[data-theme="light"] #errorBanner {
+  background:#fdecec;
+  color:#8a1f1f;
+}
+
+/* NAVIGATION */
+
+.tabs {
+  flex:none;
+  display:flex;
+  gap:20px;
+  padding:0 10px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+}
+
+.tab {
+  padding:7px 2px;
+  border:none;
+  border-bottom:2px solid transparent;
+  background:transparent;
+  color:var(--muted);
+  font-size:.78rem;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.tab.active {
+  color:var(--text);
+  border-bottom-color:var(--accent);
+}
+
+/* MAIN SECTIONS */
+
+.section {
+  display:none;
+  flex:1 1 0;
+  min-height:0;
+  width:100%;
+  max-width:1200px;
+  margin:0 auto;
+  padding:6px 8px 5px;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.section.active {
+  display:flex;
+}
+
+/* COLLAPSIBLE FILTERS */
+
+.dd {
+  flex:none;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:9px;
+  overflow:hidden;
+}
+
+.dd-head {
+  width:100%;
+  min-height:35px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:5px 9px;
+  border:none;
+  background:transparent;
+  color:var(--text);
+  cursor:pointer;
+  text-align:left;
+  font-size:.76rem;
+  font-weight:600;
+}
+
+.dd-title {
+  white-space:nowrap;
+}
+
+.mini {
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:var(--muted);
+  font:.63rem var(--mono);
+}
+
+.mini span {
+  white-space:nowrap;
+}
+
+.mini b {
+  color:var(--text);
+  font-size:.73rem;
+}
+
+.mini .w b {
+  color:var(--yellow);
+}
+
+.mini .x b {
+  color:var(--red);
+}
+
+#ddCaret {
+  flex:none;
+  color:var(--muted);
+}
+
+.dd-panel {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  padding:9px;
+  border-top:1px solid var(--border);
+}
+
+.dd-panel[hidden] {
+  display:none;
+}
+
+.flt-label {
+  width:100%;
+  color:var(--muted);
+  font:600 .64rem var(--mono);
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.dd-panel label {
+  display:flex;
+  align-items:center;
+  gap:5px;
+  color:var(--muted);
+  font-size:.74rem;
+}
+
+.dd-panel input[type="time"] {
+  width:105px;
+  min-height:32px;
+  padding:4px 6px;
+  border:1px solid var(--border);
+  border-radius:7px;
+  background:var(--surface);
+  color:var(--text);
+  font:.78rem var(--mono);
+  color-scheme:dark;
+}
+
+[data-theme="light"] .dd-panel input[type="time"] {
+  color-scheme:light;
+}
+
+.dd-panel input.on {
+  border-color:var(--accent2);
+}
+
+.chip-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid var(--border);
+  border-radius:7px;
+  background:transparent;
+  color:var(--muted);
+  font:600 .68rem var(--mono);
+  cursor:pointer;
+}
+
+.chip-btn.on {
+  background:rgba(255,138,30,.13);
+  border-color:var(--accent2);
+  color:var(--text);
+}
+
+.flt-info {
+  flex-basis:100%;
+  color:var(--muted);
+  font:.67rem var(--mono);
+}
+
+/* FLIGHT TABLE PANES */
+
+.pane {
+  flex:1 1 0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  margin-top:5px;
+}
+
+.pane-head {
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+  padding:1px 2px 4px;
+}
+
+.sec-title {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:.8rem;
+  font-weight:700;
+}
+
+.sec-title::before {
+  content:"";
+  width:3px;
+  height:12px;
+  flex:none;
+  border-radius:2px;
+  background:linear-gradient(var(--accent),var(--accent2));
+}
+
+.sec-updated {
+  color:var(--muted);
+  font:.58rem var(--mono);
+  white-space:nowrap;
+}
+
+/* VERTICAL SCROLLING IS CONFINED TO EACH TABLE */
+
+.table-wrap {
+  position:relative;
+  flex:1 1 0;
+  min-height:0;
+  width:100%;
+  overflow-y:auto;
+  overflow-x:auto;
+  overscroll-behavior-y:contain;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:var(--border) transparent;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--card);
+  touch-action:pan-y pan-x pinch-zoom;
+}
+
+table {
+  width:100%;
+  min-width:0;
+  table-layout:fixed;
+  border-collapse:collapse;
+  font-size:clamp(.64rem,2.45vw,.84rem);
+}
+
+thead th {
+  position:sticky;
+  top:0;
+  z-index:5;
+  background:var(--surface);
+  color:var(--muted);
+  font:600 .59rem var(--mono);
+  text-transform:uppercase;
+  letter-spacing:0;
+  padding:7px 2px;
+  text-align:center;
+  border-bottom:1px solid var(--border);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+tbody tr {
+  border-bottom:1px solid var(--border);
+  --status:transparent;
+}
+
+tbody tr:last-child {
+  border-bottom:none;
+}
+
+tbody tr:hover {
+  background:var(--surface);
+}
+
+td {
+  padding:8px 2px;
+  text-align:center;
+  vertical-align:middle;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+
+td:first-child,
+th:first-child {
+  text-align:left;
+  padding-left:6px;
+  box-shadow:inset 3px 0 0 var(--status);
+}
+
+tr.onTime {
+  --status:var(--green);
+}
+
+tr.delay {
+  --status:var(--yellow);
+}
+
+tr.heavyDelay {
+  --status:var(--red);
+}
+
+tr.cancelled {
+  --status:var(--grey);
+  color:var(--muted);
+}
+
+tr.cancelled td:not(:last-child) {
+  text-decoration:line-through;
+}
+
+tr[hidden] {
+  display:none;
+}
+
+/* ARRIVAL / DEPARTURE COLUMN WIDTHS */
+
+.t7 th:nth-child(1) { width:29%; }
+.t7 th:nth-child(2) { width:17%; }
+.t7 th:nth-child(3) { width:10%; }
+.t7 th:nth-child(4) { width:16%; }
+.t7 th:nth-child(5) { width:12%; }
+.t7 th:nth-child(6) { width:9%; }
+.t7 th:nth-child(7) { width:16%; }
+
+/* The columns intentionally use compact widths on phones. */
+
+.logo {
+  height: 16px;
+  width: auto;
+  max-width: 32px;
+  vertical-align: middle;
+  margin-right: 5px;
+  object-fit: contain;
+  display: inline-block;
+  border-radius: 2px;
+}
+
+.fn {
+  font:700 .94em var(--mono);
+  color:var(--teal);
+  white-space: nowrap;
+}
+
+.reg {
+  color:var(--muted);
+  font:.88em var(--mono);
+}
+
+.mono {
+  font-family:var(--mono);
+}
+
+td.eta {
+  white-space:normal;
+  line-height:1.15;
+}
+
+.badge {
+  display:inline-block;
+  max-width:100%;
+  padding:3px 4px;
+  border-radius:5px;
+  font:600 .67rem var(--mono);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.badge.green {
+  background:rgba(53,196,138,.14);
+  color:var(--green);
+}
+
+.badge.yellow {
+  background:rgba(255,178,56,.14);
+  color:var(--yellow);
+}
+
+.badge.red {
+  background:rgba(255,90,90,.14);
+  color:var(--red);
+}
+
+.badge.grey {
+  background:rgba(139,136,146,.15);
+  color:var(--muted);
+}
+
+.dly {
+  display:block;
+  font:.65rem var(--mono);
+  color:var(--yellow);
+}
+
+.ff-star {
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  font-size:.95rem;
+  line-height:1;
+  cursor:pointer;
+  padding:1px;
+  vertical-align:middle;
+}
+
+.ff-star:hover,
+.ff-star.on {
+  color:var(--accent2);
+}
+
+.empty {
+  padding:16px 8px;
+  color:var(--muted);
+  text-align:center;
+  white-space:normal;
+  font-size:.75rem;
+}
+
+.empty span {
+  display:block;
+  margin-bottom:3px;
+  font-size:1.25rem;
+  opacity:.65;
+}
+
+.t8 th:nth-child(1) { width:20%; }
+.t8 th:nth-child(2) { width:12%; }
+.t8 th:nth-child(3) { width:9%; }
+.t8 th:nth-child(4) { width:9%; }
+.t8 th:nth-child(5) { width:18%; }
+.t8 th:nth-child(6) { width:14%; }
+.t8 th:nth-child(7) { width:8%; }
+.t8 th:nth-child(8) { width:10%; }
+
+.turn-arr {
+  color:var(--green);
+  font:700 .88em var(--mono);
+}
+
+.turn-dep {
+  margin-top:2px;
+  color:var(--accent2);
+  font:700 .88em var(--mono);
+}
+
+.route-tags {
+  flex:none;
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  padding-top:7px;
+}
+
+.route-tag {
+  padding:3px 7px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  color:var(--muted);
+  font:.62rem var(--mono);
+}
+
+.route-tag b {
+  color:var(--text);
+}
+
+.skeleton {
+  height:12px;
+  border-radius:4px;
+  background:var(--border);
+  opacity:.65;
+}
+
+.toast {
+  position:fixed;
+  bottom:calc(16px + env(safe-area-inset-bottom));
+  left:50%;
+  z-index:999;
+  max-width:90vw;
+  padding:9px 16px;
+  border-radius:999px;
+  background:var(--text);
+  color:var(--bg);
+  box-shadow:var(--shadow);
+  font:600 .8rem var(--sans);
+  transform:translate(-50%,150%);
+  transition:transform .25s;
+  pointer-events:none;
+}
+
+.toast.show {
+  transform:translate(-50%,0);
+}
+
+/* VERY SMALL SCREENS */
+
+@media(max-width:380px) {
+  .topbar {
+    padding-left:6px;
+    padding-right:6px;
+  }
+
+  .topbar-actions {
+    gap:3px;
+  }
+
+  .icon-btn {
+    width:28px;
+    height:29px;
+    font-size:.78rem;
+  }
+
+  .brand-title {
+    font-size:.72rem;
+  }
+
+  #sTxt,
+  .brand-sub {
+    display:none;
+  }
+
+  .tabs {
+    gap:14px;
+  }
+
+  .section {
+    padding-left:5px;
+    padding-right:5px;
+  }
+
+  .dd-head {
+    padding-left:6px;
+    padding-right:6px;
+    gap:4px;
+  }
+
+  .mini {
+    gap:5px;
+    font-size:.59rem;
+  }
+
+  .mini b {
+    font-size:.65rem;
+  }
+
+  thead th {
+    font-size:.54rem;
+  }
+
+  td {
+    padding-left:1px;
+    padding-right:1px;
+  }
+
+  .badge {
+    font-size:.59rem;
+    padding:3px 2px;
+  }
+
+  .t7 th:nth-child(1) { width:28%; }
+  .t7 th:nth-child(2) { width:16%; }
+  .t7 th:nth-child(3) { width:10%; }
+  .t7 th:nth-child(4) { width:16%; }
+  .t7 th:nth-child(5) { width:12%; }
+  .t7 th:nth-child(6) { width:9%; }
+  .t7 th:nth-child(7) { width:16%; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    animation:none!important;
+    transition:none!important;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>
+        <span class="brand-title">AIX SEC OPS</span>
+        <span class="brand-sub">COCHIN · COK</span>
+      </span>
+    </div>
+
+    <div class="topbar-actions" id="topbarActions">
+      <div class="pill" aria-live="polite">
+        <span class="dot" id="sDot"></span>
+        <span id="sTxt">Starting…</span>
+      </div>
+      <a class="icon-btn" href="./map.html" aria-label="Live map" title="Live map">🗺</a>
+      <button class="icon-btn" id="refreshBtn" aria-label="Refresh flights" title="Refresh">↻</button>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">☀</button>
+      <button class="icon-btn primary" id="notifyBtn" aria-label="Enable notifications" title="Notifications">🔔</button>
+    </div>
+  </header>
+
+  <div id="errorBanner" role="alert" aria-live="assertive"></div>
+
+  <nav class="tabs" role="tablist" aria-label="Flight sections">
+    <button class="tab active" role="tab" aria-selected="true" data-tab="flights">
+      Arrivals &amp; Departures
+    </button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="turnaround">
+      Turnaround
+    </button>
+  </nav>
+
+  <main class="section active" id="flights" role="tabpanel">
+
+    <div class="dd">
+      <button class="dd-head" id="ddBtn" aria-expanded="false" aria-controls="ddPanel">
+        <span class="dd-title">⚙ Filters</span>
+
+        <span class="mini">
+          <span>Arr <b id="stArr">0</b></span>
+          <span>Dep <b id="stDep">0</b></span>
+          <span class="w">Dly <b id="stDly">0</b></span>
+          <span class="x">Cnx <b id="stCnx">0</b></span>
+        </span>
+
+        <span id="ddCaret" aria-hidden="true">▾</span>
+      </button>
+
+      <div class="dd-panel" id="ddPanel" hidden>
+        <span class="flt-label">Flight filters · IST</span>
+
+        <label>
+          From
+          <input type="time" id="fltFrom" aria-label="Filter start time">
+        </label>
+
+        <label>
+          To
+          <input type="time" id="fltTo" aria-label="Filter end time">
+        </label>
+
+        <button class="chip-btn" id="hideDone" aria-pressed="false">
+          ◉ Hide landed / departed
+        </button>
+
+        <button class="chip-btn" id="fltClear">Clear filters</button>
+        <button class="chip-btn" id="earlierBtn">← Load earlier</button>
+        <button class="chip-btn" id="proxyBtn">Proxy: Auto</button>
+
+        <span class="flt-info" id="fltInfo" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <section class="pane" aria-label="Arrivals">
+      <div class="pane-head">
+        <span class="sec-title">Arrivals</span>
+        <span class="sec-updated" id="arrCount">0 flights</span>
+      </div>
+
+      <div class="table-wrap" id="arrWrap">
+        <table id="tArr" class="t7">
+          <thead>
+            <tr>
+              <th>Flight</th>
+              <th>Reg</th>
+              <th>From</th>
+              <th>ETA</th>
+              <th>STA</th>
+              <th>Type</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bArr"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="pane" aria-label="Departures">
+      <div class="pane-head">
+        <span class="sec-title">Departures</span>
+        <span class="sec-updated" id="depCount">0 flights</span>
+      </div>
+
+      <div class="table-wrap" id="depWrap">
+        <table id="tDep" class="t7">
+          <thead>
+            <tr>
+              <th>Flight</th>
+              <th>Reg</th>
+              <th>To</th>
+              <th>ETD</th>
+              <th>STD</th>
+              <th>Type</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bDep"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <main class="section" id="turnaround" role="tabpanel">
+    <div class="pane" style="margin-top:0">
+      <div class="pane-head">
+        <span class="sec-title">Turnaround matches</span>
+        <span class="sec-updated" id="turnCount">0 matches</span>
+      </div>
+
+      <div class="table-wrap">
+        <table id="tTurn" class="t8">
+          <thead>
+            <tr>
+              <th>Pair</th>
+              <th>Reg</th>
+              <th>From</th>
+              <th>To</th>
+              <th>ETA / ETD</th>
+              <th>STA / STD</th>
+              <th>Type</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bTurn"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="route-tags">
+      <span class="route-tag"><b>IX</b> Air India Express</span>
+      <span class="route-tag"><b>AK/FD</b> AirAsia</span>
+      <span class="route-tag"><b>UL</b> SriLankan</span>
+      <span class="route-tag"><b>J9</b> Jazeera</span>
+      <span class="route-tag"><b>FZ</b> flydubai</span>
+      <span class="route-tag"><b>WY</b> Oman Air</span>
+      <span class="route-tag"><b>EY</b> Etihad</span>
+      <span class="route-tag"><b>G9/3L</b> Air Arabia</span>
+      <span class="route-tag"><b>QR</b> Qatar</span>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+const AIRPORT = 'cok';
+const ALLOWED = ['IX','AK','FD','UL','J9','FZ','WY','G9','3L','EY','QR'];
+const FR24_BASE =
+  `https://api.flightradar24.com/common/v1/airport.json?code=${AIRPORT}`;
+
+const BRANDFETCH_ID = '1idBLQ1djCDndBUmUVs';
+
+const PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+];
+
+const $ = id => document.getElementById(id);
+
+const safeStorage = {
+  get(key, fallback = null) {
+    try {
+      return localStorage.getItem(key) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  }
+};
+
+let proxyMode = safeStorage.get('cok_proxy', 'auto');
+if (!['auto','on','off'].includes(proxyMode)) proxyMode = 'auto';
+
+let theme = safeStorage.get('cok_theme', 'dark');
+if (!['dark','light'].includes(theme)) theme = 'dark';
+
+let baseTs = Math.floor(Date.now() / 1000);
+let loading = false;
+let consecutiveFailures = 0;
+let pollTimer = null;
+let toastTimer = null;
+let deferredPrompt = null;
+
+const lastFetch = new Map();
+const notified = new Set();
+const rowMap = {
+  arrivals: new Map(),
+  departures: new Map()
+};
+
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+const hideDone = $('hideDone');
+
+/* HTML AND TIME HELPERS */
+
+const escapeHtml = value =>
+  String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[ch]);
+
+function toIST(ts) {
+  if (!ts || !Number.isFinite(Number(ts))) return '–';
+
+  try {
+    return new Date(Number(ts) * 1000).toLocaleTimeString('en-IN', {
+      timeZone:'Asia/Kolkata',
+      hour:'2-digit',
+      minute:'2-digit',
+      hour12:false
+    });
+  } catch {
+    return '–';
+  }
+}
+
+window.toIST = toIST;
+
+function delayMin(scheduled, estimated) {
+  return scheduled && estimated
+    ? Math.round((estimated - scheduled) / 60)
+    : 0;
+}
+
+function rowClass(status, delay) {
+  if (/cancel|cancell/i.test(status || '')) return 'cancelled';
+  return delay > 30 ? 'heavyDelay' : delay > 5 ? 'delay' : 'onTime';
+}
+
+function badgeClass(cls) {
+  return ({
+    onTime:'green',
+    delay:'yellow',
+    heavyDelay:'red'
+  })[cls] || 'grey';
+}
+
+function setStatus(kind, text) {
+  $('sDot').className = 'dot' + (kind ? ' ' + kind : '');
+  $('sTxt').textContent = text;
+}
+
+function showError(message) {
+  $('errorBanner').textContent = message;
+  $('errorBanner').style.display = 'block';
+}
+
+function clearError() {
+  $('errorBanner').style.display = 'none';
+  $('errorBanner').textContent = '';
+}
+
+function showToast(message) {
+  const toast = $('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+window.showToast = showToast;
+
+function statusBadge(cls, text) {
+  const full = String(text || 'Unknown');
+  const clean = full
+    .replace(/\s*\d{1,2}:\d{2}.*$/, '')
+    .trim()
+    .toLowerCase();
+
+  const short = ({
+    estimated:'Est.',
+    scheduled:'Sched.',
+    landed:'Landed',
+    departed:'Departed',
+    delayed:'Delayed',
+    canceled:'Cancelled',
+    cancelled:'Cancelled',
+    unknown:'Unknown'
+  })[clean] || full.replace(/\s*\d{1,2}:\d{2}.*$/, '').trim() || '–';
+
+  return `<span class="badge ${badgeClass(cls)}" title="${escapeHtml(full)}">${escapeHtml(short)}</span>`;
+}
+
+function etaCell(estimated, scheduled, delay) {
+  const time = toIST(estimated || scheduled);
+  return escapeHtml(time) +
+    (delay > 0 ? `<span class="dly">+${delay}m</span>` : '');
+}
+
+function setEmpty(tbody, columns, icon, message) {
+  tbody.innerHTML =
+    `<tr data-empty="1"><td colspan="${columns}" class="empty"><span>${icon}</span>${escapeHtml(message)}</td></tr>`;
+}
+
+function clearEmpty(tbody) {
+  tbody.querySelectorAll('[data-empty="1"],[data-skeleton="1"]')
+    .forEach(row => row.remove());
+}
+
+/* FLIGHT WINDOWS */
+
+function inWindow(type, scheduled, estimated, actual) {
+  const now = Math.floor(Date.now() / 1000);
+  const t = scheduled || estimated || 0;
+
+  const inRange = t >= now - 3600 && t <= now + 72000;
+  const lagging = scheduled && now > scheduled && (!actual || actual > now);
+
+  const recent = type === 'arrivals'
+    ? actual && actual >= now - 10800
+    : actual && actual >= now - 600;
+
+  return Boolean(inRange || lagging || recent);
+}
+
+function cleanOld(type, tbody) {
+  const now = Math.floor(Date.now() / 1000);
+  const cutoff = type === 'arrivals' ? now - 10800 : now - 600;
+
+  Array.from(tbody.rows).forEach(row => {
+    if (row.dataset.empty || row.dataset.skeleton) return;
+
+    const actual = Number(row.dataset.act) || 0;
+    const scheduled = Number(row.dataset.sch) || 0;
+
+    const expired = actual
+      ? actual < cutoff
+      : scheduled > 0 && scheduled < now - 86400;
+
+    if (expired) {
+      rowMap[type].delete(row.dataset.fid);
+      row.remove();
+    }
+  });
+}
+
+function sortByScheduled(tbody) {
+  Array.from(tbody.rows)
+    .filter(row => !row.dataset.empty && !row.dataset.skeleton)
+    .sort((a, b) =>
+      (Number(a.dataset.sch) || 0) - (Number(b.dataset.sch) || 0)
+    )
+    .forEach(row => tbody.appendChild(row));
+}
+
+/* AIRLINE LOGOS */
+
+function getLogo(flightNumber) {
+  if (!flightNumber) return '';
+
+  const code = flightNumber.slice(0, 2).toUpperCase();
+
+  // AirAsia (AK / FD) — clean FR24 asset
+  if (code === 'AK' || code === 'FD') {
+    return 'https://cdn.flightradar24.com/assets/airlines/logotypes/25.png';
+  }
+
+  // Kiwi.com airline logo CDN — small, reliable, covers almost every IATA code
+  return `https://images.kiwi.com/airlines/64/${code}.png`;
+}
+
+function logoImg(flightNumber) {
+  const url = getLogo(flightNumber);
+  if (!url) return '';
+
+  return `<img class="logo" src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">`;
+}
+
+
+/* FETCHING */
+
+function shouldFetch(key, minMs = 25000) {
+  const now = Date.now();
+  if (now - (lastFetch.get(key) || 0) < minMs) return false;
+
+  lastFetch.set(key, now);
+  return true;
+}
+
+async function fetchJson(url) {
+  const useProxy = proxyMode === 'on' || (proxyMode === 'auto' && isIOS);
+
+  const chain = useProxy
+    ? [...PROXIES.map(proxy => proxy(url)), url]
+    : [url, ...PROXIES.map(proxy => proxy(url))];
+
+  for (const requestUrl of chain) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    try {
+      setStatus('warn', 'Loading…');
+
+      const response = await fetch(requestUrl, {
+        signal:controller.signal,
+        cache:'no-store'
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const body = await response.text();
+      const first = body.indexOf('{');
+      const last = body.lastIndexOf('}');
+
+      if (first < 0 || last <= first) {
+        throw new Error('Invalid JSON response');
+      }
+
+      const json = JSON.parse(body.slice(first, last + 1));
+
+      consecutiveFailures = 0;
+      setStatus('ok', 'Live · ' + new Date().toLocaleTimeString('en-IN', {
+        hour:'2-digit',
+        minute:'2-digit'
+      }));
+      clearError();
+
+      return json;
+    } catch {
+      // Try the next endpoint.
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  consecutiveFailures++;
+
+  setStatus('bad', 'No data');
+
+  showError(
+    consecutiveFailures > 2
+      ? `Unable to load flight data (${consecutiveFailures} consecutive attempts). Check your connection or change the proxy setting.`
+      : 'Unable to load flight data. Retrying with another connection.'
+  );
+
+  throw new Error('All flight-data requests failed');
+}
+
+/* NOTIFICATIONS */
+
+const canNotify = () => 'Notification' in window;
+
+function notify(flightNumber, message) {
+  const key = flightNumber + '|' + message;
+  if (notified.has(key)) return;
+
+  notified.add(key);
+
+  if (canNotify() && Notification.permission === 'granted') {
+    try {
+      new Notification(`✈ ${flightNumber}`, {
+        body:message,
+        icon:'./icon-192.png'
+      });
+    } catch {}
+  }
+}
+
+/* LOAD FLIGHTS */
+
+async function loadFlights(type, timestamp, force = false) {
+  const requestKey = `${type}:${timestamp}`;
+
+  if (!force && !shouldFetch(requestKey)) return;
+
+  const url =
+    `${FR24_BASE}&plugin-setting[schedule][mode]=${type}` +
+    `&plugin-setting[schedule][timestamp]=${timestamp}&limit=100`;
+
+  let json;
+
+  try {
+    json = await fetchJson(url);
+  } catch {
+    return;
+  }
+
+  const schedule =
+    json?.result?.response?.airport?.pluginData?.schedule?.[type]?.data;
+
+  if (!Array.isArray(schedule)) {
+    showError('The flight-data response did not contain the expected schedule.');
+    return;
+  }
+
+  const tbody = $(type === 'arrivals' ? 'bArr' : 'bDep');
+  const isDeparture = type === 'departures';
+  const map = rowMap[type];
+
+  clearEmpty(tbody);
+
+  for (const item of schedule) {
+    const flight = item?.flight;
+    const number = flight?.identification?.number?.default || '';
+
+    if (!number || !ALLOWED.includes(number.slice(0, 2))) continue;
+
+    const times = flight?.time || {};
+    const scheduledTimes = times.scheduled || {};
+    const estimatedTimes = times.estimated || {};
+    const actualTimes = times.actual || {};
+
+    const scheduled = isDeparture
+      ? scheduledTimes.departure
+      : scheduledTimes.arrival;
+
+    const estimated = isDeparture
+      ? estimatedTimes.departure
+      : estimatedTimes.arrival;
+
+    const actual = isDeparture
+      ? actualTimes.departure
+      : actualTimes.arrival;
+
+    if (!inWindow(type, scheduled, estimated, actual)) continue;
+
+    const key = `${number}|${scheduled || 0}`;
+    const delay = delayMin(scheduled, estimated);
+    const statusText = flight?.status?.text || 'Unknown';
+    const cls = rowClass(statusText, delay);
+
+    const existing = map.get(key);
+
+    if (existing && existing.isConnected) {
+      const oldDelay = Number(existing.dataset.delay) || 0;
+
+      existing.cells[3].innerHTML = etaCell(estimated, scheduled, delay);
+      existing.cells[6].innerHTML = statusBadge(cls, statusText);
+      existing.className = cls;
+
+      existing.dataset.delay = delay;
+      existing.dataset.est = estimated || 0;
+      existing.dataset.act = actual || 0;
+
+      const registration = flight?.aircraft?.registration;
+
+      if (registration && existing.cells[1].textContent.trim() === '–') {
+        existing.cells[1].textContent = registration;
+      }
+
+      if (delay > 5 && delay > oldDelay) {
+        notify(number, `Delayed by ${delay} minutes`);
+      }
+
+      continue;
+    }
+
+    const registration = flight?.aircraft?.registration || '–';
+
+    const airport = isDeparture
+      ? flight?.airport?.destination
+      : flight?.airport?.origin;
+
+    const place = airport?.code?.iata || '–';
+
+    const model =
+      flight?.aircraft?.model?.code ||
+      flight?.aircraft?.model?.text ||
+      '–';
+
+    const row = document.createElement('tr');
+
+    row.dataset.fid = key;
+    row.dataset.fn = number;
+    row.dataset.place = place;
+    row.dataset.sch = scheduled || 0;
+    row.dataset.est = estimated || 0;
+    row.dataset.act = actual || 0;
+    row.dataset.delay = delay;
+    row.className = cls;
+
+    row.innerHTML = `
+      <td class="fn">
+        ${isDeparture ? '' : `<button type="button" class="ff-star" aria-pressed="false" title="Track this flight" aria-label="Track ${escapeHtml(number)}">☆</button>`}
+        ${logoImg(number)}${escapeHtml(number)}
+      </td>
+      <td class="reg">${escapeHtml(registration)}</td>
+      <td>${escapeHtml(place)}</td>
+      <td class="mono eta">${etaCell(estimated, scheduled, delay)}</td>
+      <td class="mono">${toIST(scheduled)}</td>
+      <td>${escapeHtml(model)}</td>
+      <td>${statusBadge(cls, statusText)}</td>
+    `;
+
+    tbody.appendChild(row);
+    map.set(key, row);
+  }
+
+  cleanOld(type, tbody);
+  sortByScheduled(tbody);
+
+  if (!Array.from(tbody.rows).some(row => !row.dataset.empty && !row.dataset.skeleton)) {
+    setEmpty(tbody, 7, '✈', 'No flights in range');
+  }
+
+  $('lastUpdated')?.remove();
+
+  $('arrCount').textContent =
+    `${countRealRows('bArr')} flights`;
+
+  $('depCount').textContent =
+    `${countRealRows('bDep')} flights`;
+
+  applyFilter();
+  updateStats();
+}
+
+function countRealRows(id) {
+  return Array.from($(id).rows).filter(row =>
+    !row.dataset.empty &&
+    !row.dataset.skeleton &&
+    !row.hidden
+  ).length;
+}
+
+/* FILTERS */
+
+const toMin = value => {
+  if (!value) return null;
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const istMin = timestamp =>
+  Math.floor(((timestamp + 19800) % 86400) / 60);
+
+function applyFilter() {
+  const fromValue = $('fltFrom').value;
+  const toValue = $('fltTo').value;
+
+  const fromMin = toMin(fromValue);
+  const toMinutes = toMin(toValue);
+  const hide = hideDone.classList.contains('on');
+
+  const active =
+    fromMin !== null ||
+    toMinutes !== null ||
+    hide;
+
+  $('fltFrom').classList.toggle('on', fromMin !== null);
+  $('fltTo').classList.toggle('on', toMinutes !== null);
+
+  const start = fromMin === null ? 0 : fromMin;
+  const end = toMinutes === null ? 1439 : toMinutes;
+
+  let shown = 0;
+  let total = 0;
+
+  ['bArr','bDep'].forEach(id => {
+    Array.from($(id).rows).forEach(row => {
+      if (row.dataset.empty || row.dataset.skeleton) return;
+
+      total++;
+
+      const actual = Number(row.dataset.act) || 0;
+      const timestamp =
+        Number(row.dataset.est) ||
+        Number(row.dataset.sch) ||
+        0;
+
+      let visible = true;
+
+      if (
+        hide &&
+        (actual > 0 || /landed|departed/i.test(row.cells[6]?.textContent || ''))
+      ) {
+        visible = false;
+      }
+
+      if (visible && (fromMin !== null || toMinutes !== null) && timestamp) {
+        const minute = istMin(timestamp);
+
+        visible = start <= end
+          ? minute >= start && minute <= end
+          : minute >= start || minute <= end;
+      }
+
+      row.hidden = !visible;
+
+      if (visible) shown++;
+    });
+  });
+
+  $('fltInfo').textContent =
+    active ? `Showing ${shown} of ${total} flights` : '';
+
+  $('arrCount').textContent = `${countRealRows('bArr')} flights`;
+  $('depCount').textContent = `${countRealRows('bDep')} flights`;
+}
+
+function updateStats() {
+  const arrivals = Array.from($('bArr').rows).filter(row =>
+    !row.dataset.empty && !row.dataset.skeleton && !row.hidden
+  );
+
+  const departures = Array.from($('bDep').rows).filter(row =>
+    !row.dataset.empty && !row.dataset.skeleton && !row.hidden
+  );
+
+  const all = [...arrivals, ...departures];
+
+  $('stArr').textContent = arrivals.length;
+  $('stDep').textContent = departures.length;
+
+  $('stDly').textContent = all.filter(row =>
+    row.classList.contains('delay') ||
+    row.classList.contains('heavyDelay')
+  ).length;
+
+  $('stCnx').textContent = all.filter(row =>
+    row.classList.contains('cancelled')
+  ).length;
+}
+
+/* RESTORE AND SAVE FILTER SETTINGS */
+
+try {
+  const saved = JSON.parse(safeStorage.get('cok_flt', 'null'));
+
+  if (Array.isArray(saved)) {
+    $('fltFrom').value = saved[0] || '';
+    $('fltTo').value = saved[1] || '';
+  }
+} catch {}
+
+if (safeStorage.get('cok_hide') === '1') {
+  hideDone.classList.add('on');
+  hideDone.setAttribute('aria-pressed', 'true');
+}
+
+['fltFrom','fltTo'].forEach(id => {
+  $(id).addEventListener('input', () => {
+    safeStorage.set(
+      'cok_flt',
+      JSON.stringify([$('fltFrom').value, $('fltTo').value])
+    );
+    applyFilter();
+    updateStats();
+  });
+});
+
+hideDone.addEventListener('click', () => {
+  const enabled = !hideDone.classList.contains('on');
+
+  hideDone.classList.toggle('on', enabled);
+  hideDone.setAttribute('aria-pressed', String(enabled));
+  safeStorage.set('cok_hide', enabled ? '1' : '0');
+
+  applyFilter();
+  updateStats();
+});
+
+$('fltClear').addEventListener('click', () => {
+  $('fltFrom').value = '';
+  $('fltTo').value = '';
+
+  hideDone.classList.remove('on');
+  hideDone.setAttribute('aria-pressed', 'false');
+
+  safeStorage.remove('cok_flt');
+  safeStorage.set('cok_hide', '0');
+
+  applyFilter();
+  updateStats();
+  showToast('Filters cleared');
+});
+
+/* TURNAROUND MATCHING */
+
+function readRows(id, placeKey, timeKey) {
+  const result = new Map();
+
+  Array.from($(id).rows).forEach(row => {
+    if (
+      row.dataset.empty ||
+      row.dataset.skeleton ||
+      row.hidden ||
+      row.cells.length < 7
+    ) return;
+
+    const registration = row.cells[1].textContent.trim();
+    if (!registration || registration === '–') return;
+
+    const flight = {
+      fn:row.dataset.fn || row.cells[0].textContent.trim(),
+      reg:registration,
+      [placeKey]:row.cells[2].textContent.trim(),
+      [timeKey]:Number(row.dataset.est) || Number(row.dataset.sch) || 0,
+      sch:Number(row.dataset.sch) || 0,
+      dly:Number(row.dataset.delay) || 0,
+      model:row.cells[5].textContent.trim()
+    };
+
+    if (!result.has(registration)) result.set(registration, []);
+    result.get(registration).push(flight);
+  });
+
+  return result;
+}
+
+function buildTurnarounds() {
+  const arrivals = readRows('bArr', 'from', 'eta');
+  const departures = readRows('bDep', 'to', 'etd');
+  const tbody = $('bTurn');
+
+  tbody.innerHTML = '';
+  let count = 0;
+
+  for (const [registration, inboundFlights] of arrivals) {
+    if (!departures.has(registration)) continue;
+
+    const outboundFlights = departures.get(registration)
+      .sort((a, b) => a.etd - b.etd);
+
+    const used = new Set();
+
+    inboundFlights.sort((a, b) => a.eta - b.eta).forEach(arrival => {
+      const departure = outboundFlights.find(item =>
+        !used.has(item) &&
+        item.etd > arrival.eta &&
+        item.etd - arrival.eta <= 9000
+      );
+
+      if (!departure) return;
+
+      used.add(departure);
+
+      const maxDelay = Math.max(arrival.dly, departure.dly);
+      const cls = rowClass('', maxDelay);
+      const row = document.createElement('tr');
+
+      row.className = cls;
+      row.dataset.sch = arrival.sch || 0;
+      row.dataset.est = arrival.eta || 0;
+
+      row.innerHTML = `
+        <td>
+          <div class="turn-arr">${logoImg(arrival.fn)}${escapeHtml(arrival.fn)}</div>
+          <div class="turn-dep">↳ ${escapeHtml(departure.fn)}</div>
+        </td>
+        <td class="reg">${escapeHtml(registration)}</td>
+        <td>${escapeHtml(arrival.from)}</td>
+        <td>${escapeHtml(departure.to)}</td>
+        <td class="mono">${toIST(arrival.eta)} / ${toIST(departure.etd)}</td>
+        <td class="mono">${toIST(arrival.sch)} / ${toIST(departure.sch)}</td>
+        <td>${escapeHtml(arrival.model || '–')}</td>
+        <td>
+          <span class="badge ${badgeClass(cls)}">
+            ${maxDelay > 0 ? '+' + maxDelay + ' min' : 'On time'}
+          </span>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+      count++;
+    });
+  }
+
+  sortByScheduled(tbody);
+
+  if (!count) {
+    setEmpty(tbody, 8, '🔄', 'No turnarounds detected yet');
+  }
+
+  $('turnCount').textContent = `${count} matches`;
+}
+
+/* REFRESH */
+
+async function loadAll(force = false) {
+  if (loading && !force) return;
+
+  loading = true;
+
+  try {
+    baseTs = Math.floor(Date.now() / 1000);
+
+    const windows = [-1,0,1,2,3,4].map(offset =>
+      baseTs + offset * 6 * 3600
+    );
+
+    await Promise.allSettled(
+      windows.flatMap(timestamp => [
+        loadFlights('arrivals', timestamp, force),
+        loadFlights('departures', timestamp, force)
+      ])
+    );
+
+    buildTurnarounds();
+    applyFilter();
+    updateStats();
+  } finally {
+    loading = false;
+  }
+}
+
+$('refreshBtn').addEventListener('click', () => {
+  lastFetch.clear();
+  loadAll(true);
+  showToast('Refreshing flights…');
+});
+
+$('earlierBtn').addEventListener('click', async () => {
+  if (loading) {
+    showToast('Refresh in progress');
+    return;
+  }
+
+  baseTs -= 6 * 3600;
+
+  await Promise.allSettled([
+    loadFlights('arrivals', baseTs, true),
+    loadFlights('departures', baseTs, true)
+  ]);
+
+  buildTurnarounds();
+  applyFilter();
+  updateStats();
+
+  showToast('Earlier flights loaded');
+});
+
+/* PROXY */
+
+function updateProxyBtn() {
+  $('proxyBtn').textContent =
+    `Proxy: ${proxyMode.charAt(0).toUpperCase() + proxyMode.slice(1)}`;
+}
+
+$('proxyBtn').addEventListener('click', () => {
+  const modes = ['auto','on','off'];
+  proxyMode = modes[(modes.indexOf(proxyMode) + 1) % modes.length];
+
+  safeStorage.set('cok_proxy', proxyMode);
+  updateProxyBtn();
+
+  lastFetch.clear();
+  showToast(`Proxy: ${proxyMode}`);
+
+  loadAll(true);
+});
+
+updateProxyBtn();
+
+/* THEME */
+
+function applyTheme() {
+  document.documentElement.dataset.theme =
+    theme === 'light' ? 'light' : 'dark';
+
+  $('themeBtn').textContent = theme === 'dark' ? '☀' : '☾';
+  $('themeBtn').setAttribute(
+    'aria-label',
+    theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+  );
+}
+
+$('themeBtn').addEventListener('click', () => {
+  theme = theme === 'dark' ? 'light' : 'dark';
+  safeStorage.set('cok_theme', theme);
+  applyTheme();
+});
+
+applyTheme();
+
+/* NOTIFICATION PERMISSION */
+
+$('notifyBtn').addEventListener('click', async () => {
+  if (!canNotify()) {
+    showToast('Notifications are not supported');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    showToast('Notifications already enabled');
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    showToast('Enable notifications in browser settings');
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+
+    showToast(
+      permission === 'granted'
+        ? 'Notifications enabled'
+        : 'Notification permission not granted'
+    );
+  } catch {
+    showToast('Could not request notification permission');
+  }
+});
+
+/* COLLAPSIBLE FILTER PANEL */
+
+const ddBtn = $('ddBtn');
+const ddPanel = $('ddPanel');
+
+ddBtn.addEventListener('click', () => {
+  const open = ddPanel.hidden;
+
+  ddPanel.hidden = !open;
+  ddBtn.setAttribute('aria-expanded', String(open));
+  $('ddCaret').textContent = open ? '▴' : '▾';
+});
+
+/* SECTION NAVIGATION */
+
+document.querySelectorAll('.tab').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(tab => {
+      const active = tab === button;
+
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+
+    document.querySelectorAll('.section').forEach(section => {
+      section.classList.toggle('active', section.id === button.dataset.tab);
+    });
+
+    if (button.dataset.tab === 'turnaround') {
+      buildTurnarounds();
+    }
+  });
+});
+
+/* INITIAL LOADING PLACEHOLDERS */
+
+['bArr','bDep'].forEach(id => {
+  const tbody = $(id);
+
+  for (let index = 0; index < 3; index++) {
+    tbody.insertAdjacentHTML(
+      'beforeend',
+      `<tr data-skeleton="1"><td colspan="7"><div class="skeleton"></div></td></tr>`
+    );
+  }
+});
+
+/* INSTALL APP */
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredPrompt = event;
+
+  if ($('installBtn')) return;
+
+  const button = document.createElement('button');
+  button.id = 'installBtn';
+  button.className = 'icon-btn primary';
+  button.textContent = '↓';
+  button.title = 'Install app';
+  button.setAttribute('aria-label', 'Install app');
+
+  $('topbarActions')?.appendChild(button);
+
+  // If the optional action container is absent, use the existing header.
+  if (!button.isConnected) {
+    button.style.cssText =
+      'position:fixed;top:calc(55px + env(safe-area-inset-top));right:12px;z-index:500';
+    document.body.appendChild(button);
+  }
+
+  button.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+
+    deferredPrompt = null;
+    button.remove();
+  });
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  $('installBtn')?.remove();
+  showToast('App installed');
+});
+
+/* SERVICE WORKER */
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./service-worker.js')
+      .catch(() => {});
+  });
+}
+
+/* AUTOMATIC REFRESH */
+
+const BASE_POLL_MS = 30000;
+const MAX_POLL_MS = 5 * 60000;
+
+function schedulePoll() {
+  clearTimeout(pollTimer);
+
+  const delay = consecutiveFailures > 0
+    ? Math.min(
+        MAX_POLL_MS,
+        BASE_POLL_MS * Math.pow(2, Math.min(consecutiveFailures, 5))
+      )
+    : BASE_POLL_MS;
+
+  pollTimer = setTimeout(async () => {
+    await loadAll(false);
+    schedulePoll();
+  }, delay);
+}
+
+loadAll(true);
+schedulePoll();
+
+window.addEventListener('online', () => {
+  lastFetch.clear();
+  loadAll(true);
+  showToast('Connection restored');
+  schedulePoll();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    lastFetch.clear();
+    loadAll(false);
+  }
+});
+</script>
+
+<script src="flight-follow.js"></script>
+</body>
+</html>
